@@ -6,6 +6,7 @@ Locally the developer's `az login` is used; in Azure the app's managed identity 
 from __future__ import annotations
 
 import os
+import shutil
 from functools import lru_cache
 from pathlib import Path
 
@@ -13,6 +14,11 @@ from agent_framework.foundry import FoundryChatClient
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+# Local dev on Windows: processes started before the Azure CLI was installed may not have it on PATH.
+_AZ_WIN = Path(r"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin")
+if os.name == "nt" and not shutil.which("az") and _AZ_WIN.exists():
+    os.environ["PATH"] = os.environ.get("PATH", "") + os.pathsep + str(_AZ_WIN)
 
 
 @lru_cache(maxsize=1)

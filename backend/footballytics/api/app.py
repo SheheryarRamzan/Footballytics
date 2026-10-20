@@ -1,7 +1,7 @@
-"""Footballytics API: live hub + REST + WebSocket stream + MCP server, in one ASGI app.
+"""Footballytics API: live hub + REST + WebSocket stream + MCP server (+ the built web app), one ASGI app.
 
 Run locally:  uvicorn footballytics.api.app:app --port 8000
-Env:  MATCHDAY (default 9), SPEED sim-seconds per wall-second (default 6), AUTOSTART (default 1)
+Env:  MATCHDAY (default 9), SPEED sim-seconds per wall-second (default 4), AUTOSTART (default 1)
 """
 
 from __future__ import annotations
@@ -12,19 +12,29 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from ..agents.service import AgentService
 from ..hub import LiveHub
-from ..jsonutil import dumps
 from ..intel import mcp_server, tools
+from ..jsonutil import dumps, to_jsonable
+from ..personal import taste
+from ..personal.profiles import ProfileStore
+from ..personal.session import ViewerSession
 
 log = logging.getLogger("footballytics.api")
 HUB = LiveHub()
 MCP = mcp_server.build()
 AGENTS = AgentService(HUB)
+FANS = ProfileStore(HUB.league)
+SESSIONS: set[ViewerSession] = set()
+WEB_DIST = Path(os.getenv("WEB_DIST", Path(__file__).resolve().parents[3] / "frontend" / "dist"))
 
 
 @asynccontextmanager
@@ -32,13 +42,13 @@ async def lifespan(app: FastAPI):
     tools.bind(HUB)
     HUB.load_matchday(int(os.getenv("MATCHDAY", "9")))
     if os.getenv("AUTOSTART", "1") == "1":
-        HUB.start(speed=float(os.getenv("SPEED", "6")))
+        HUB.start(speed=float(os.getenv("SPEED", "4")))
     async with MCP.session_manager.run():
         yield
     HUB.stop()
 
 
-app = FastAPI(title="Footballytics", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Footballytics", version="0.2.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.mount("/mcp-server", MCP.streamable_http_app())  # MCP endpoint: /mcp-server/mcp
 
@@ -52,16 +62,12 @@ def _call(fn, *args, **kwargs):
         raise HTTPException(409, str(exc)) from exc
 
 
+# ----------------------------------------------------------------------------- live data
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "matchday": HUB.matchday, "running": HUB.running, "speed": HUB.speed,
-            "matches": len(HUB.matches), "moments": len(HUB.moment_log), "agents": AGENTS.stats()}
-
-
-@app.get("/api/broadcast")
-def broadcast(match_id: str | None = None, limit: int = Query(30, le=300)) -> list[dict]:
-    items = [i for i in reversed(AGENTS.broadcast_log) if not match_id or i["match_id"] == match_id]
-    return items[:limit]
+            "matches": len(HUB.matches), "moments": len(HUB.moment_log), "viewers": len(SESSIONS),
+            "agents": AGENTS.stats()}
 
 
 @app.get("/api/league")
@@ -82,17 +88,28 @@ def matches() -> list[dict]:
 @app.get("/api/matches/{match_id}")
 def match_state(match_id: str) -> dict:
     m = _call(HUB.match, match_id)
-    return {**m.meta, **m.proc.snapshot(players=True)}
+    return to_jsonable({**m.meta, **m.proc.snapshot(players=True), "field_tilt": m.proc.field_tilt()})
 
 
 @app.get("/api/matches/{match_id}/players/{player_id}")
 def player(match_id: str, player_id: str) -> dict:
-    return _call(tools.get_player_stats, match_id, player_id)
+    return to_jsonable(_call(tools.get_player_stats, match_id, player_id))
 
 
 @app.get("/api/matches/{match_id}/pitch-control")
-def pitch_control(match_id: str) -> dict:
-    return _call(tools.get_pitch_control, match_id)
+def pitch_control(match_id: str, full: bool = False) -> dict:
+    out = _call(tools.get_pitch_control, match_id)
+    if full:  # full-resolution grid for the analyst heatmap (rows = y bottom->top, cols = x left->right)
+        import numpy as np
+
+        from ..engine.metrics import pitch_control as pc
+
+        m = HUB.match(match_id)
+        f, team_of = m.last_frame, m.proc.team_of
+        hxy = np.array([(p[1], p[2]) for p in f["players"] if team_of.get(p[0]) == m.meta["home"]])
+        axy = np.array([(p[1], p[2]) for p in f["players"] if team_of.get(p[0]) == m.meta["away"]])
+        out["grid_full"] = np.round(pc(hxy, axy, nx=30, ny=20), 3).tolist()
+    return to_jsonable(out)
 
 
 @app.get("/api/moments")
@@ -104,17 +121,124 @@ def moments(match_id: str | None = None, since_minute: int = 0, limit: int = Que
         res.append(m.to_dict())
         if len(res) >= limit:
             break
-    return res
+    return to_jsonable(res)
+
+
+@app.get("/api/moments/{moment_id}/explain")
+def explain(moment_id: str) -> dict:
+    return to_jsonable(_call(tools.explain_moment, moment_id))
+
+
+@app.get("/api/broadcast")
+def broadcast(match_id: str | None = None, limit: int = Query(30, le=300)) -> list[dict]:
+    items = [i for i in reversed(AGENTS.broadcast_log) if not match_id or i["match_id"] == match_id]
+    return items[:limit]
 
 
 @app.get("/api/fantasy")
 def fantasy(player_ids: str | None = None) -> list[dict]:
     ids = player_ids.split(",") if player_ids else None
-    return tools.fantasy_points(None, ids)
+    return to_jsonable(tools.fantasy_points(None, ids))
 
 
+# ----------------------------------------------------------------------------- fans
+class FanIn(BaseModel):
+    favorite_club: str = "RIV"
+    mode: str = "fan"
+    language: str = "en"
+    display_name: str = "Fan"
+    squad: list[str] | None = None
+    captain: str | None = None
+
+
+class FanPatch(BaseModel):
+    mode: str | None = None
+    language: str | None = None
+    favorite_club: str | None = None
+    captain: str | None = None
+    focus_player: str | None = None
+    display_name: str | None = None
+
+
+class Feedback(BaseModel):
+    signal: str  # skip | replay | like | dwell | ask
+    kind: str
+    moment_id: str | None = None
+
+
+def _fan_view(fan) -> dict:
+    lg = HUB.league
+    squad = []
+    for pid in fan.squad:
+        p = lg.players[pid]
+        squad.append({"player_id": pid, "name": p.name, "short_name": p.short_name, "club": p.club_id,
+                      "club_name": lg.clubs[p.club_id].name, "group": p.group, "role": p.role, "number": p.number,
+                      "price": p.price, "captain": pid == fan.captain, "vice_captain": pid == fan.vice_captain})
+    return {**fan.to_dict(), "squad_detail": squad, "taste": taste.explain(fan)}
+
+
+@app.post("/api/fans")
+def create_fan(body: FanIn) -> dict:
+    if body.favorite_club not in HUB.league.clubs:
+        raise HTTPException(404, f"unknown club {body.favorite_club}")
+    fan = _call(FANS.create, body.favorite_club, body.mode, body.language, body.display_name, body.squad, body.captain)
+    return _fan_view(fan)
+
+
+@app.get("/api/fans/{fan_id}")
+def get_fan(fan_id: str) -> dict:
+    return _fan_view(_call(FANS.get, fan_id))
+
+
+@app.patch("/api/fans/{fan_id}")
+def patch_fan(fan_id: str, body: FanPatch) -> dict:
+    fan = _call(FANS.update, fan_id, **body.model_dump(exclude_none=True))
+    for s in SESSIONS:
+        if s.fan is fan:
+            s.refresh_profile()
+    return _fan_view(fan)
+
+
+@app.post("/api/fans/{fan_id}/feedback")
+def feedback(fan_id: str, body: Feedback) -> dict:
+    fan = _call(FANS.get, fan_id)
+    return {**taste.record(fan, body.signal, body.kind, body.moment_id), "taste": taste.explain(fan)}
+
+
+@app.post("/api/fans/{fan_id}/rundown")
+async def fan_rundown(fan_id: str) -> dict:
+    fan = _call(FANS.get, fan_id)
+    if not AGENTS.enabled:
+        raise HTTPException(503, "agents are not configured")
+    from ..personal.rundown import rundown
+
+    return to_jsonable(await rundown(fan, HUB))
+
+
+class Question(BaseModel):
+    question: str
+    fan_id: str | None = None
+    match_id: str | None = None
+    language: str | None = None
+    mode: str | None = None
+
+
+@app.post("/api/ask")
+async def ask(body: Question) -> dict:
+    if not AGENTS.enabled:
+        raise HTTPException(503, "agents are not configured")
+    from ..agents.pundit import ask as pundit_ask
+
+    fan = FANS.get(body.fan_id) if body.fan_id else None
+    lang = body.language or (fan.language if fan else "en")
+    mode = body.mode or (fan.mode if fan else "fan")
+    return to_jsonable(await pundit_ask(body.question[:500], lang, mode, body.match_id, fan.squad if fan else None,
+                                       fan.captain if fan else None))
+
+
+# ----------------------------------------------------------------------------- admin
 @app.post("/api/admin/restart")
-async def restart(matchday: int = 9, speed: float = 6.0) -> dict:
+async def restart(matchday: int = 9, speed: float = 4.0) -> dict:
     HUB.stop()
     await asyncio.sleep(0.2)
     HUB.load_matchday(matchday)
@@ -128,45 +252,63 @@ def set_speed(speed: float = Query(..., gt=0, le=60)) -> dict:
     return health()
 
 
+# ----------------------------------------------------------------------------- stream
 @app.websocket("/ws")
 async def stream(ws: WebSocket) -> None:
-    """Live stream. Client may send {"focus": match_id} to receive tracking frames for one match
-    (all moments, events, fantasy deltas and ticks are always sent)."""
+    """Live stream; see personal/session.py for the client protocol."""
     await ws.accept()
     q = HUB.subscribe()
-    focus: dict[str, str | None] = {"match_id": None}
-    langs: list[str] = []
+    session = ViewerSession(HUB, FANS, AGENTS)
+    SESSIONS.add(session)
+    send_lock = asyncio.Lock()
+
+    async def send(msg: dict) -> None:
+        try:
+            text = dumps(msg)
+        except (TypeError, ValueError):
+            log.exception("unserialisable %s message skipped", msg.get("kind"))
+            return
+        async with send_lock:
+            await ws.send_text(text)
 
     async def reader() -> None:
-        nonlocal langs
         while True:
-            msg = json.loads(await ws.receive_text())
-            if "focus" in msg:
-                focus["match_id"] = msg["focus"]
-            if "languages" in msg:
-                AGENTS.remove_viewer_languages(langs)
-                langs = [str(x)[:8] for x in msg["languages"]][:3]
-                AGENTS.add_viewer_languages(langs)
+            try:
+                msg = json.loads(await ws.receive_text())
+            except json.JSONDecodeError:
+                continue
+            try:
+                for out in session.on_client(msg):
+                    await send(out)
+            except KeyError as exc:
+                await send({"kind": "error", "data": {"message": str(exc)}})
 
     task = asyncio.create_task(reader())
     try:
-        await ws.send_text(json.dumps({"kind": "hello", "data": {"matchday": HUB.matchday,
-                                                                  "matches": tools.list_live_matches()}}))
+        await send({"kind": "hello", "data": {"matchday": HUB.matchday, "speed": HUB.speed,
+                                              "matches": tools.list_live_matches()}})
         while True:
             msg = await q.get()
-            if msg["kind"] in ("frame", "event") and msg["match_id"] != focus["match_id"]:
-                continue
-            try:
-                text = dumps(msg)
-            except (TypeError, ValueError):
-                log.exception("unserialisable %s message skipped", msg.get("kind"))
-                continue
-            await ws.send_text(text)
+            for out in session.on_hub(msg):
+                await send(out)
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
         task.cancel()
         with contextlib.suppress(Exception):
             await task
-        AGENTS.remove_viewer_languages(langs)
+        session.close()
+        SESSIONS.discard(session)
         HUB.unsubscribe(q)
+
+
+# ----------------------------------------------------------------------------- web app
+if WEB_DIST.exists():
+    app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str) -> FileResponse:
+        target = WEB_DIST / path
+        if path and target.is_file():
+            return FileResponse(target)
+        return FileResponse(WEB_DIST / "index.html")
