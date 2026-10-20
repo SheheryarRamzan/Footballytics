@@ -77,11 +77,13 @@ class PlayerStats:
     take_ons_won: int = 0
     saves: int = 0
     difficult_passes: int = 0
+    line_breaks: int = 0  # completed passes past 3+ defenders
     difficulty_sum: float = 0.0
     accuracy_sum: float = 0.0
     accuracy_n: int = 0
     distance_m: float = 0.0
     top_speed_kmh: float = 0.0
+    top_shot_speed_kmh: float = 0.0
     sprints: int = 0
     yellow: int = 0
     red: int = 0
@@ -105,6 +107,7 @@ class PlayerStats:
         for k in ("difficulty_sum", "accuracy_sum", "accuracy_n"):
             d.pop(k)
         d["top_speed_kmh"] = round(self.top_speed_kmh, 1)
+        d["top_shot_speed_kmh"] = round(self.top_shot_speed_kmh, 1)
         return d
 
 
@@ -407,6 +410,8 @@ class MatchProcessor:
                 ts.xt += a.xt_added
             if a.difficulty >= 7:
                 st.difficult_passes += 1
+            if a.defenders_bypassed >= 3:
+                st.line_breaks += 1
             self._last_pass_by_possession[e.get("possession") or -1] = e
             if (a.defenders_bypassed >= 3 and a.difficulty >= 7.5 and (a.xt_added > 0.04 or a.defenders_bypassed >= 6)
                     and e["clock"] - self._last_line_breaker[team] > 300):
@@ -442,6 +447,7 @@ class MatchProcessor:
         e["_assessment"] = {"xg": round(xg, 3), "shot_speed_kmh": round(speed, 1), **factors}
         st.shots += 1
         st.xg += xg
+        st.top_shot_speed_kmh = max(st.top_shot_speed_kmh, speed)
         st.touches += 1
         ts.shots += 1
         ts.xg += xg

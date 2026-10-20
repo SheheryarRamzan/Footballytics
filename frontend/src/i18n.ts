@@ -1,4 +1,5 @@
 import { useStore } from "./store";
+import type { FocusMetric } from "./types";
 
 export const LANGUAGES: { code: string; label: string; rtl?: boolean }[] = [
   { code: "en", label: "English" },
@@ -18,6 +19,8 @@ const STRINGS: Record<string, Dict> = {
     more: "More like this", less: "Less like this", watch: "Watch", squad: "Your squad", points: "pts",
     ask: "Ask the pundit", brief: "Brief me", verified: "Verified", corrected: "Corrected by Verifier",
     feed: "Your feed", start: "Start my matchday", cutting: "Cutting to",
+    follow_stat: "Follow one stat", optional: "optional", no_stat: "None", leaders: "Matchday leaders",
+    leaders_empty: "No numbers yet: waiting for the first action.",
   },
   es: {
     matchday: "Jornada", your_matchday: "Tu Jornada", match_centre: "Centro del partido", studio: "Estudio",
@@ -25,6 +28,8 @@ const STRINGS: Record<string, Dict> = {
     more: "Más como esto", less: "Menos como esto", watch: "Ver", squad: "Tu equipo", points: "pts",
     ask: "Pregunta al experto", brief: "Resúmeme", verified: "Verificado", corrected: "Corregido",
     feed: "Tu feed", start: "Empezar mi jornada", cutting: "Cambiamos a",
+    follow_stat: "Sigue una estadística", optional: "opcional", no_stat: "Ninguna", leaders: "Líderes de la jornada",
+    leaders_empty: "Aún no hay datos: esperando la primera acción.",
   },
   ar: {
     matchday: "الجولة", your_matchday: "جولتك", match_centre: "مركز المباراة", studio: "الاستوديو",
@@ -32,6 +37,8 @@ const STRINGS: Record<string, Dict> = {
     more: "المزيد مثل هذا", less: "أقل من هذا", watch: "شاهد", squad: "فريقك", points: "نقاط",
     ask: "اسأل المحلل", brief: "ملخص لي", verified: "تم التحقق", corrected: "صُحّح",
     feed: "موجزك", start: "ابدأ جولتي", cutting: "ننتقل إلى",
+    follow_stat: "تابع إحصائية واحدة", optional: "اختياري", no_stat: "لا شيء", leaders: "متصدرو الجولة",
+    leaders_empty: "لا أرقام بعد: بانتظار أول لعبة.",
   },
   ur: {
     matchday: "میچ ڈے", your_matchday: "آپ کا میچ ڈے", match_centre: "میچ سینٹر", studio: "اسٹوڈیو",
@@ -39,6 +46,8 @@ const STRINGS: Record<string, Dict> = {
     more: "ایسا مزید", less: "ایسا کم", watch: "دیکھیں", squad: "آپ کی ٹیم", points: "پوائنٹس",
     ask: "ماہر سے پوچھیں", brief: "خلاصہ دیں", verified: "تصدیق شدہ", corrected: "درست کیا گیا",
     feed: "آپ کی فیڈ", start: "میرا میچ ڈے شروع کریں", cutting: "اب چلتے ہیں",
+    follow_stat: "ایک اعداد و شمار فالو کریں", optional: "اختیاری", no_stat: "کوئی نہیں", leaders: "میچ ڈے کے سرفہرست",
+    leaders_empty: "ابھی کوئی اعداد نہیں: پہلے ایکشن کا انتظار ہے۔",
   },
   fr: {
     matchday: "Journée", your_matchday: "Votre journée", match_centre: "Centre du match", studio: "Studio",
@@ -46,6 +55,8 @@ const STRINGS: Record<string, Dict> = {
     more: "Plus comme ça", less: "Moins comme ça", watch: "Regarder", squad: "Votre équipe", points: "pts",
     ask: "Demandez au consultant", brief: "Résumé", verified: "Vérifié", corrected: "Corrigé",
     feed: "Votre fil", start: "Lancer ma journée", cutting: "On passe à",
+    follow_stat: "Suivre une stat", optional: "facultatif", no_stat: "Aucune", leaders: "Leaders de la journée",
+    leaders_empty: "Pas encore de chiffres : on attend la première action.",
   },
   pt: {
     matchday: "Rodada", your_matchday: "Sua Rodada", match_centre: "Central da partida", studio: "Estúdio",
@@ -53,6 +64,8 @@ const STRINGS: Record<string, Dict> = {
     more: "Mais assim", less: "Menos assim", watch: "Assistir", squad: "Seu time", points: "pts",
     ask: "Pergunte ao comentarista", brief: "Resumo", verified: "Verificado", corrected: "Corrigido",
     feed: "Seu feed", start: "Começar minha rodada", cutting: "Indo para",
+    follow_stat: "Siga uma estatística", optional: "opcional", no_stat: "Nenhuma", leaders: "Líderes da rodada",
+    leaders_empty: "Ainda sem números: aguardando o primeiro lance.",
   },
   hi: {
     matchday: "मैचडे", your_matchday: "आपका मैचडे", match_centre: "मैच सेंटर", studio: "स्टूडियो",
@@ -60,6 +73,8 @@ const STRINGS: Record<string, Dict> = {
     more: "ऐसा और", less: "ऐसा कम", watch: "देखें", squad: "आपकी टीम", points: "अंक",
     ask: "पंडित से पूछें", brief: "सारांश", verified: "सत्यापित", corrected: "सुधारा गया",
     feed: "आपकी फ़ीड", start: "मेरा मैचडे शुरू करें", cutting: "अब चलते हैं",
+    follow_stat: "एक आँकड़ा फ़ॉलो करें", optional: "वैकल्पिक", no_stat: "कोई नहीं", leaders: "मैचडे में सबसे आगे",
+    leaders_empty: "अभी कोई आँकड़े नहीं: पहले एक्शन का इंतज़ार है।",
   },
 };
 
@@ -104,6 +119,37 @@ export function kindLabel(kind: string, lang: string): string {
   const i = KINDS.indexOf(kind);
   if (i < 0) return kind.replace(/_/g, " ").toUpperCase();
   return (KIND_LABELS[lang] ?? KIND_LABELS.en)[i];
+}
+
+// Follow one stat: the metrics the API accepts and, per language, [name, what its leaderboard ranks].
+export const FOCUS_METRICS: FocusMetric[] = ["top_speed", "shot_speed", "pass_difficulty", "xg", "distance", "line_breaking_passes"];
+const FOCUS_LABELS: Record<string, [string, string][]> = {
+  en: [["Top speed", "fastest sprint today"], ["Shot speed", "hardest shot today"],
+    ["Pass difficulty", "passes completed at difficulty 7+/10"], ["Expected goals (xG)", "total xG from shots"],
+    ["Distance covered", "km run today"], ["Line-breaking passes", "completed passes past 3+ defenders"]],
+  es: [["Velocidad punta", "sprint más rápido de hoy"], ["Potencia de tiro", "disparo más potente de hoy"],
+    ["Dificultad de pase", "pases completados con dificultad 7+/10"], ["Goles esperados (xG)", "xG total de sus tiros"],
+    ["Distancia recorrida", "km recorridos hoy"], ["Pases entre líneas", "pases completados que superan a 3+ defensores"]],
+  ar: [["أعلى سرعة", "أسرع انطلاقة اليوم"], ["قوة التسديدة", "أقوى تسديدة اليوم"],
+    ["صعوبة التمرير", "تمريرات ناجحة بصعوبة 7+/10"], ["الأهداف المتوقعة (xG)", "مجموع xG من التسديدات"],
+    ["المسافة المقطوعة", "الكيلومترات المقطوعة اليوم"], ["تمريرات تكسر الخطوط", "تمريرات ناجحة تتجاوز 3+ مدافعين"]],
+  ur: [["تیز ترین رفتار", "آج کی تیز ترین دوڑ"], ["شاٹ کی رفتار", "آج کا سب سے زوردار شاٹ"],
+    ["پاس کی مشکل", "7+/10 مشکل والے مکمل پاس"], ["متوقع گول (xG)", "شاٹس سے کل xG"],
+    ["طے کیا گیا فاصلہ", "آج دوڑے گئے کلومیٹر"], ["لائنیں توڑنے والے پاس", "3+ دفاعی کھلاڑیوں سے آگے جانے والے مکمل پاس"]],
+  fr: [["Vitesse de pointe", "sprint le plus rapide du jour"], ["Puissance de frappe", "frappe la plus puissante du jour"],
+    ["Difficulté des passes", "passes réussies de difficulté 7+/10"], ["Buts attendus (xG)", "xG total sur ses tirs"],
+    ["Distance parcourue", "km parcourus aujourd'hui"], ["Passes qui cassent les lignes", "passes réussies qui éliminent 3+ défenseurs"]],
+  pt: [["Velocidade máxima", "arrancada mais rápida do dia"], ["Potência do chute", "chute mais forte do dia"],
+    ["Dificuldade do passe", "passes certos com dificuldade 7+/10"], ["Gols esperados (xG)", "xG total dos chutes"],
+    ["Distância percorrida", "km percorridos hoje"], ["Passes que quebram linhas", "passes certos que superam 3+ defensores"]],
+  hi: [["टॉप स्पीड", "आज की सबसे तेज़ दौड़"], ["शॉट की रफ़्तार", "आज का सबसे ज़ोरदार शॉट"],
+    ["पास की कठिनाई", "7+/10 कठिनाई वाले सफल पास"], ["अपेक्षित गोल (xG)", "शॉट्स से कुल xG"],
+    ["तय की गई दूरी", "आज दौड़े गए किमी"], ["लाइन तोड़ने वाले पास", "3+ डिफ़ेंडरों को पार करने वाले सफल पास"]],
+};
+
+/** [name, what the leaderboard ranks] for a followed stat, in the viewer's language. */
+export function focusLabel(metric: FocusMetric, lang: string): [string, string] {
+  return (FOCUS_LABELS[lang] ?? FOCUS_LABELS.en)[FOCUS_METRICS.indexOf(metric)];
 }
 
 /** The numbers behind a moment; they read the same in every language. */

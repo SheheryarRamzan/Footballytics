@@ -1,5 +1,6 @@
 export type Mode = "fan" | "analyst" | "kids" | "audio";
 export type View = "matchday" | "centre" | "studio";
+export type FocusMetric = "top_speed" | "shot_speed" | "pass_difficulty" | "xg" | "distance" | "line_breaking_passes";
 
 export interface Player {
   id: string;
@@ -154,9 +155,19 @@ export interface Fan {
   mode: Mode;
   language: string;
   focus_player: string | null;
+  focus_metric: FocusMetric | null;
   weights: Record<string, number>;
   squad_detail: SquadPlayer[];
   taste: Taste;
+}
+
+/** Matchday leaderboard for the stat a fan follows (GET /api/leaders). */
+export interface Leaders {
+  metric: FocusMetric;
+  label: string;
+  unit: string;
+  digits: number;
+  rows: { rank: number; player_id: string; name: string; club: string; match_id: string; value: number }[];
 }
 
 export interface TeamStats {

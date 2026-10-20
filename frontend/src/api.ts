@@ -1,4 +1,4 @@
-import type { Club, Fan, MatchState, Mode } from "./types";
+import type { Club, Fan, FocusMetric, Leaders, MatchState, Mode } from "./types";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -19,13 +19,14 @@ export const api = {
   match: (id: string) => req<MatchState>(`/api/matches/${id}`),
   pitchControl: (id: string) => req<any>(`/api/matches/${id}/pitch-control?full=true`),
   explain: (momentId: string) => req<any>(`/api/moments/${momentId}/explain`),
-  createFan: (body: { favorite_club: string; mode: Mode; language: string; display_name: string }) =>
+  createFan: (body: { favorite_club: string; mode: Mode; language: string; display_name: string; focus_metric: FocusMetric | null }) =>
     req<Fan>("/api/fans", { method: "POST", body: JSON.stringify(body) }),
   getFan: (id: string) => req<Fan>(`/api/fans/${id}`),
-  patchFan: (id: string, body: Partial<Pick<Fan, "mode" | "language" | "captain" | "focus_player" | "favorite_club">>) =>
+  patchFan: (id: string, body: Partial<Pick<Fan, "mode" | "language" | "captain" | "focus_player" | "focus_metric" | "favorite_club">>) =>
     req<Fan>(`/api/fans/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   feedback: (id: string, signal: string, kind: string, moment_id?: string) =>
     req<any>(`/api/fans/${id}/feedback`, { method: "POST", body: JSON.stringify({ signal, kind, moment_id }) }),
+  leaders: (metric: FocusMetric) => req<Leaders>(`/api/leaders?metric=${metric}`),
   rundown: (id: string) => req<any>(`/api/fans/${id}/rundown`, { method: "POST" }),
   ask: (question: string, fan_id?: string, match_id?: string | null) =>
     req<{ answer: string; tool_calls: { tool: string; args: any; ms: number }[]; latency_ms: number }>("/api/ask", {

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { api } from "../api";
-import { LANGUAGES } from "../i18n";
+import { FOCUS_METRICS, LANGUAGES, focusLabel, tr } from "../i18n";
 import { live, useStore } from "../store";
-import type { Mode } from "../types";
+import type { FocusMetric, Mode } from "../types";
 import { contrastText } from "../pitch/shared";
 
 const MODES: { id: Mode; title: string; text: string }[] = [
@@ -18,6 +18,7 @@ export function Setup() {
   const [club, setClub] = useState("KGA");
   const [mode, setMode] = useState<Mode>("fan");
   const [language, setLanguage] = useState("en");
+  const [metric, setMetric] = useState<FocusMetric | null>(null);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +27,13 @@ export function Setup() {
     setBusy(true);
     setError(null);
     try {
-      const fan = await api.createFan({ favorite_club: club, mode, language, display_name: name.trim() || "Fan" });
+      const fan = await api.createFan({
+        favorite_club: club,
+        mode,
+        language,
+        display_name: name.trim() || "Fan",
+        focus_metric: metric,
+      });
       localStorage.setItem("fbx_fan", fan.fan_id);
       setFan(fan);
       useStore.getState().setPitch(mode === "analyst" ? "2d" : "3d");
@@ -75,6 +82,20 @@ export function Setup() {
             </button>
           ))}
         </div>
+        <h2>
+          3 · {tr("follow_stat", "en")} ({tr("optional", "en")})
+        </h2>
+        <div className="stat-grid" role="radiogroup" aria-label={tr("follow_stat", "en")}>
+          {[null, ...FOCUS_METRICS].map((m) => {
+            const [label, note] = m ? focusLabel(m, "en") : [tr("no_stat", "en"), "just my club and squad"];
+            return (
+              <button key={m ?? "none"} role="radio" aria-checked={metric === m} className={`mode${metric === m ? " on" : ""}`} onClick={() => setMetric(m)}>
+                <b>{label}</b>
+                <span>{note}</span>
+              </button>
+            );
+          })}
+        </div>
         <div className="setup-row">
           <label>
             Language
@@ -91,7 +112,7 @@ export function Setup() {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Fan" maxLength={24} />
           </label>
         </div>
-        <p className="muted small">We'll pick a valid 15-player fantasy squad for you (budget 100, max 3 per club). Tap any player later to follow them on Player Cam.</p>
+        <p className="muted small">We'll pick a valid 15-player fantasy squad for you (budget 100, max 3 per club). Tap any player later to follow them on Player Cam. Follow a stat and the Director boosts those moments, with a live top 5 across all ten matches.</p>
         {error && <p className="error">{error}</p>}
         <button className="btn big" onClick={start} disabled={busy}>
           {busy ? "Setting up…" : "Start my matchday →"}

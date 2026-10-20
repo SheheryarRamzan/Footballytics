@@ -3,6 +3,7 @@ import { api } from "./api";
 import { Desk } from "./components/Desk";
 import { FantasyPanel } from "./components/Fantasy";
 import { Feed } from "./components/Feed";
+import { FocusBoard } from "./components/FocusBoard";
 import { MatchCentre } from "./components/MatchCentre";
 import { ScoresRail } from "./components/ScoresRail";
 import { Setup } from "./components/Setup";
@@ -23,6 +24,7 @@ function Matchday() {
       </div>
       <aside className="md-side">
         <FantasyPanel />
+        <FocusBoard />
         <Feed />
         <Desk />
       </aside>

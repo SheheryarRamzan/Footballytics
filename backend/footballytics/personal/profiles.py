@@ -1,4 +1,4 @@
-"""Fan profiles: favourite club, fantasy squad, viewing mode, language and learned taste."""
+"""Fan profiles: favourite club, fantasy squad, viewing mode, language, a followed stat and learned taste."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 
 from ..league import League
+from .focus import FOCUS_METRICS
 
 MODES = ("fan", "analyst", "kids", "audio")
 SQUAD_SHAPE = {"GK": 2, "DEF": 5, "MID": 5, "FWD": 3}
@@ -45,6 +46,7 @@ class FanProfile:
     mode: str = "fan"
     language: str = "en"
     focus_player: str | None = None  # Player Cam
+    focus_metric: str | None = None  # Follow one stat (a FOCUS_METRICS key)
     weights: dict[str, float] = field(default_factory=dict)
     signals: list[dict] = field(default_factory=list)
 
@@ -121,6 +123,12 @@ def validate_squad(league: League, squad: list[str]) -> list[str]:
     return errors
 
 
+def _check_metric(metric: str | None) -> str | None:
+    if metric is not None and metric not in FOCUS_METRICS:
+        raise ValueError(f"unknown focus metric {metric}; choose one of {', '.join(FOCUS_METRICS)}")
+    return metric
+
+
 class ProfileStore:
     """Fan profiles in memory, persisted to Cosmos DB when configured (survives restarts and replicas)."""
 
@@ -139,8 +147,10 @@ class ProfileStore:
                 logging.getLogger("footballytics.fans").exception("could not persist fan %s", fan.fan_id)
 
     def create(self, favorite_club: str = "RIV", mode: str = "fan", language: str = "en",
-               display_name: str = "Fan", squad: list[str] | None = None, captain: str | None = None) -> FanProfile:
+               display_name: str = "Fan", squad: list[str] | None = None, captain: str | None = None,
+               focus_metric: str | None = None) -> FanProfile:
         fan_id = uuid.uuid4().hex[:12]
+        _check_metric(focus_metric)
         if squad:
             errors = validate_squad(self.league, squad)
             if errors:
@@ -150,7 +160,7 @@ class ProfileStore:
             squad, auto_captain, vice = auto_squad(self.league, favorite_club, seed=hash(fan_id) & 0xFFFF)
             captain = captain or auto_captain
         fan = FanProfile(fan_id, display_name, favorite_club, squad, captain, vice,
-                         mode if mode in MODES else "fan", language)
+                         mode if mode in MODES else "fan", language, focus_metric=focus_metric)
         self._fans[fan_id] = fan
         self.save(fan)
         return fan
@@ -167,6 +177,7 @@ class ProfileStore:
 
     def update(self, fan_id: str, **changes) -> FanProfile:
         fan = self.get(fan_id)
+        metric = _check_metric(changes.get("focus_metric") or None)  # before anything changes
         if "mode" in changes and changes["mode"] in MODES and changes["mode"] != fan.mode:
             old, fan.mode = fan.mode, changes.pop("mode")
             # Switching mode changes the prior but keeps what the Taste Learner learned about this fan.
@@ -176,5 +187,7 @@ class ProfileStore:
         for key in ("display_name", "favorite_club", "language", "captain", "vice_captain", "focus_player"):
             if key in changes and changes[key] is not None:
                 setattr(fan, key, changes[key])
+        if "focus_metric" in changes:  # None (or "") stops following a stat
+            fan.focus_metric = metric
         self.save(fan)
         return fan

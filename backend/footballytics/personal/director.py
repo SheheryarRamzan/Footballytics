@@ -4,6 +4,7 @@ For each incoming moment it scores *personal relevance* from
   * the moment's match importance (leverage-weighted by the stats engine),
   * the fan's learned taste for that kind of moment (Taste Learner weights),
   * involvement of the fan's fantasy squad (captain counts double) and favourite club,
+  * the one stat the fan follows, if any (e.g. top speed boosts sprint tags),
 and then decides, under an interruption budget, whether to
   CUT    the main stage to that match,
   PIP    show it picture-in-picture without leaving the current match,
@@ -18,11 +19,13 @@ import time
 from dataclasses import dataclass, field
 
 from ..league import League
+from .focus import FOCUS_METRICS
 from .profiles import FanProfile
 
 CUT_AT, PIP_AT, TICKER_AT = 0.78, 0.5, 0.3
 MIN_CUT_GAP_S = 18.0  # wall-clock seconds between cuts (interruption budget)
 HOLD_S = 22.0  # how long to stay on a cut match before returning home
+FOCUS_BOOST = 0.45  # moments of the stat a fan follows: between Player Cam (0.4) and the captain (0.6)
 
 ROLE_WORDS = {"GK": "keeper", "DEF": "defender", "MID": "midfielder", "FWD": "forward"}
 
@@ -102,6 +105,10 @@ class PersonalDirector:
         if self.fan.focus_player and self.fan.focus_player in moment.get("player_ids", []):
             rel += 0.4
             reasons.append(f"you're following {self._name(self.fan.focus_player)} on Player Cam")
+        metric = FOCUS_METRICS.get(self.fan.focus_metric or "")
+        if metric and kind in metric.kinds:
+            rel += FOCUS_BOOST
+            reasons.append(f"you follow {metric.label}")
         if moment.get("team_id") == self.fan.favorite_club:
             rel += 0.3
             reasons.append(f"{self.league.clubs[self.fan.favorite_club].name} is your club")

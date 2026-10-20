@@ -27,7 +27,7 @@ from ..cloud import cosmos_from_env, eventhub_from_env, setup_telemetry
 from ..hub import LiveHub
 from ..intel import mcp_server, tools
 from ..jsonutil import dumps, to_jsonable
-from ..personal import taste
+from ..personal import focus, taste
 from ..personal.profiles import ProfileStore
 from ..personal.session import ViewerSession
 
@@ -209,6 +209,12 @@ def fantasy(player_ids: str | None = None) -> list[dict]:
     return to_jsonable(tools.fantasy_points(None, ids))
 
 
+@app.get("/api/leaders")
+def leaders(metric: str, top: int = Query(5, ge=1, le=20)) -> dict:
+    """Matchday leaderboard for one followed stat (focus.FOCUS_METRICS) across every live match."""
+    return to_jsonable(_call(focus.leaders, HUB, metric, top))
+
+
 # ----------------------------------------------------------------------------- fans
 class FanIn(BaseModel):
     favorite_club: str = "RIV"
@@ -217,6 +223,7 @@ class FanIn(BaseModel):
     display_name: str = "Fan"
     squad: list[str] | None = None
     captain: str | None = None
+    focus_metric: str | None = None  # Follow one stat: top_speed, shot_speed, pass_difficulty, xg, distance, ...
 
 
 class FanPatch(BaseModel):
@@ -225,6 +232,7 @@ class FanPatch(BaseModel):
     favorite_club: str | None = None
     captain: str | None = None
     focus_player: str | None = None
+    focus_metric: str | None = None  # null stops following a stat
     display_name: str | None = None
 
 
@@ -249,7 +257,8 @@ def _fan_view(fan) -> dict:
 def create_fan(body: FanIn) -> dict:
     if body.favorite_club not in HUB.league.clubs:
         raise HTTPException(404, f"unknown club {body.favorite_club}")
-    fan = _call(FANS.create, body.favorite_club, body.mode, body.language, body.display_name, body.squad, body.captain)
+    fan = _call(FANS.create, body.favorite_club, body.mode, body.language, body.display_name, body.squad, body.captain,
+                body.focus_metric)
     return _fan_view(fan)
 
 
@@ -260,7 +269,7 @@ def get_fan(fan_id: str) -> dict:
 
 @app.patch("/api/fans/{fan_id}")
 def patch_fan(fan_id: str, body: FanPatch) -> dict:
-    fan = _call(FANS.update, fan_id, **body.model_dump(exclude_none=True))
+    fan = _call(FANS.update, fan_id, **body.model_dump(exclude_unset=True))  # an explicit null can clear focus_metric
     for s in SESSIONS:
         if s.fan is fan:
             s.refresh_profile()

@@ -21,7 +21,7 @@ Built for the **Microsoft × Premier League "Inside the Game" Developer Hackatho
 | **Interpret** | A deterministic stats engine (about 0.06 ms per frame) computes: <ul><li>Shots: xG with pressure measured from tracking.</li><li>Passing: xT added, **pass difficulty 1–10**, pass accuracy, line-breaking passes.</li><li>Speed: ball and shot speed, sprint and speed tags.</li><li>Team shape: pitch control, momentum, **control vs chaos**, PPDA pressing shifts, tempo.</li><li>Live **fantasy points**.</li></ul> |
 | **Explain** | An **agent newsroom** on Microsoft Agent Framework and Foundry explains *why* moments matter. A **Verifier** checks every number against live data and sends wrong claims back for a rewrite. |
 | **Render** | Timed, machine-readable **overlay cues** drive a broadcast graphics layer on a live **3D broadcast camera** or a **2D tactical view**. |
-| **Personalize** | A **Personal Director** cuts between matches for each fan. It weighs their fantasy squad (captain counts double), their club and their **learned taste**, and every decision answers "why am I seeing this?". |
+| **Personalize** | A **Personal Director** cuts between matches for each fan. It weighs their fantasy squad (captain counts double), their club, their **learned taste** and the **one stat they follow** (top speed, shot speed, pass difficulty, xG, distance or line-breaking passes, with a live top 5 across every match), and every decision answers "why am I seeing this?". |
 
 ## Screenshots
 
@@ -158,7 +158,7 @@ cd ../backend && .venv/Scripts/python -m uvicorn footballytics.api.app:app --por
 
 Without Foundry settings, everything except the LLM agents still runs: simulation, stats, moments, Director, overlays and template captions.
 
-**Tests:** `cd backend && .venv/Scripts/python -m pytest -q` runs 28 tests covering the simulator, engine, tools, agent guard rails, personalisation and cloud routing.
+**Tests:** `cd backend && .venv/Scripts/python -m pytest -q` runs 31 tests covering the simulator, engine, tools, agent guard rails, personalisation and cloud routing.
 
 **Screenshots:** `python tools/screenshots.py --url http://localhost:8000/` drives the real UI with Playwright and Edge, and regenerates `docs/images/`.
 
