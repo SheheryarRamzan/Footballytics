@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000" font-family="Segoe UI, Inter, system-ui, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8fb3d9"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22d3a6"/>
+    </marker>
+    <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#f87171"/>
+    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1a36"/>
+      <stop offset="1" stop-color="#070b16"/>
+    </linearGradient>
+    <style>
+      .grp { fill: rgba(17, 26, 51, 0.55); stroke: #263354; stroke-width: 1.5; }
+      .box { fill: #121c36; stroke: #2c3a5f; stroke-width: 1.5; }
+      .agent { fill: #16213f; stroke: #a78bfa; stroke-width: 1.8; }
+      .det { fill: #10261f; stroke: #34d399; stroke-width: 1.8; }
+      .azure { fill: #0f1d38; stroke: #38bdf8; stroke-width: 1.6; }
+      .ai { fill: #1b1638; stroke: #c084fc; stroke-width: 1.8; }
+      .gtitle { fill: #8a99b4; font-size: 14px; font-weight: 700; letter-spacing: 1.4px; }
+      .t { fill: #e5ecf6; font-size: 17px; font-weight: 700; }
+      .s { fill: #a9b8d2; font-size: 13px; }
+      .chip { fill: #1a2545; stroke: #2c3a5f; }
+      .ct { fill: #cfe0f5; font-size: 13px; font-weight: 600; }
+      .lbl { fill: #8fb3d9; font-size: 12px; font-style: italic; }
+      .line { stroke: #8fb3d9; stroke-width: 2; fill: none; }
+      .gline { stroke: #22d3a6; stroke-width: 2.4; fill: none; }
+      .rline { stroke: #f87171; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      .dash { stroke: #4b5d86; stroke-width: 1.5; fill: none; stroke-dasharray: 5 6; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <text x="40" y="54" fill="#e5ecf6" font-size="30" font-weight="800">Footballytics</text>
+  <text x="250" y="54" fill="#22d3a6" font-size="30" font-weight="800">· Your Matchday</text>
+  <text x="40" y="82" class="s" font-size="15">Synthetic matchday → explainable, verified, personal broadcasts for every fan · Microsoft Agent Framework + Foundry on Azure</text>
+
+  <!-- ===================== LIVE DATA ===================== -->
+  <rect class="grp" x="30" y="108" width="450" height="392" rx="16"/>
+  <text class="gtitle" x="50" y="134">1 · INGEST + INTERPRET (DETERMINISTIC)</text>
+
+  <rect class="det" x="50" y="150" width="410" height="86" rx="12"/>
+  <text class="t" x="70" y="180">MatchForge simulator</text>
+  <text class="s" x="70" y="202">10 concurrent matches · fictional 20-club league</text>
+  <text class="s" x="70" y="222">events (FEP v1) + 10 Hz tracking · 15/15 realism checks</text>
+
+  <path class="line" d="M255 236 V266" marker-end="url(#a)"/>
+
+  <rect class="det" x="50" y="268" width="410" height="104" rx="12"/>
+  <text class="t" x="70" y="298">Stats engine  (0.06 ms / frame)</text>
+  <text class="s" x="70" y="320">xG with measured pressure · xT · pass difficulty 1-10</text>
+  <text class="s" x="70" y="340">pitch control · momentum · control vs chaos · PPDA</text>
+  <text class="s" x="70" y="360">sprints &amp; speed tags · live fantasy ledger</text>
+
+  <path class="line" d="M255 372 V402" marker-end="url(#a)"/>
+
+  <rect class="det" x="50" y="404" width="410" height="78" rx="12"/>
+  <text class="t" x="70" y="434">Moments</text>
+  <text class="s" x="70" y="456">facts · factual "why" · evidence ids · instant captions</text>
+  <text class="s" x="70" y="474">timed, machine-readable overlay cues</text>
+
+  <!-- ===================== NEWSROOM ===================== -->
+  <rect class="grp" x="500" y="108" width="600" height="392" rx="16"/>
+  <text class="gtitle" x="520" y="134">2 · EXPLAIN + RENDER · AGENT FRAMEWORK WORKFLOW</text>
+
+  <rect class="det" x="520" y="156" width="104" height="58" rx="10"/>
+  <text class="t" x="540" y="183" font-size="15">Triage</text>
+  <text class="s" x="534" y="202">importance</text>
+
+  <rect class="ai" x="660" y="150" width="180" height="70" rx="10"/>
+  <text class="t" x="678" y="178">Analyst</text>
+  <text class="s" x="678" y="198">gpt-5-mini · why it matters</text>
+  <text class="s" x="678" y="214">structured claims</text>
+
+  <rect class="det" x="880" y="150" width="200" height="70" rx="10"/>
+  <text class="t" x="898" y="178">Verifier</text>
+  <text class="s" x="898" y="198">every claim vs live data</text>
+  <text class="s" x="898" y="214">every number vs evidence</text>
+
+  <path class="line" d="M624 185 H656" marker-end="url(#a)"/>
+  <path class="line" d="M840 178 H876" marker-end="url(#a)"/>
+  <path class="rline" d="M930 222 C930 246 770 246 770 224" marker-end="url(#r)"/>
+  <text class="lbl" x="782" y="262" fill="#f87171" font-size="11">corrections · max 2 rewrites</text>
+
+  <rect class="ai" x="540" y="290" width="292" height="74" rx="10"/>
+  <text class="t" x="558" y="318">Host</text>
+  <text class="s" x="558" y="338">gpt-4.1-mini · fan / analyst / kids / audio</text>
+  <text class="s" x="558" y="355">natively in each viewer's language</text>
+
+  <rect class="det" x="850" y="290" width="230" height="74" rx="10"/>
+  <text class="t" x="868" y="318">Graphics producer</text>
+  <text class="s" x="868" y="338">template · in/out · priority</text>
+  <text class="s" x="868" y="355">anchor · data → overlay cue</text>
+
+  <path class="line" d="M980 222 V286" marker-end="url(#a)"/>
+  <path class="line" d="M980 276 H686 V286" marker-end="url(#a)"/>
+
+  <rect class="box" x="690" y="388" width="250" height="44" rx="10"/>
+  <text class="t" x="712" y="416" font-size="15">Publisher → broadcast item</text>
+  <path class="line" d="M700 364 V384" marker-end="url(#a)"/>
+  <path class="line" d="M960 364 V384" marker-end="url(#a)"/>
+
+  <rect class="chip" x="520" y="448" width="132" height="32" rx="16"/><text class="ct" x="534" y="469">Personal Director</text>
+  <rect class="chip" x="660" y="448" width="104" height="32" rx="16"/><text class="ct" x="674" y="469">Taste Learner</text>
+  <rect class="chip" x="772" y="448" width="104" height="32" rx="16"/><text class="ct" x="786" y="469">Rundown agent</text>
+  <rect class="chip" x="884" y="448" width="92" height="32" rx="16"/><text class="ct" x="898" y="469">Pundit (MCP)</text>
+  <rect class="chip" x="984" y="448" width="102" height="32" rx="16"/><text class="ct" x="998" y="469">Recap Editor</text>
+
+  <path class="gline" d="M460 443 H490 V185 H516" marker-end="url(#g)"/>
+
+  <!-- ===================== AUDIENCES ===================== -->
+  <rect class="grp" x="1120" y="108" width="450" height="392" rx="16"/>
+  <text class="gtitle" x="1140" y="134">3 · PERSONALIZE + DELIVER</text>
+
+  <rect class="box" x="1140" y="150" width="410" height="150" rx="12"/>
+  <text class="t" x="1160" y="180">Web app (React + three.js)</text>
+  <text class="s" x="1160" y="204">Your Matchday · Match Centre · Studio</text>
+  <text class="s" x="1160" y="226">Director cuts / picture-in-picture across 10 matches</text>
+  <text class="s" x="1160" y="248">3D broadcast · Player Cam · overlays · fantasy squad</text>
+  <text class="s" x="1160" y="270">7 languages (RTL) · kids · audio description (TTS)</text>
+  <text class="s" x="1160" y="290">"Why am I seeing this?" on every decision</text>
+
+  <rect class="box" x="1140" y="320" width="410" height="96" rx="12"/>
+  <text class="t" x="1160" y="350">Football Intelligence MCP · 12 tools</text>
+  <text class="s" x="1160" y="374">GitHub Copilot · Claude · Foundry agents</text>
+  <text class="s" x="1160" y="394">same tools the Pundit and agents use</text>
+
+  <rect class="box" x="1140" y="432" width="410" height="50" rx="12"/>
+  <text class="s" x="1160" y="463">WebSocket per viewer · fan profile · learned taste</text>
+
+  <path class="gline" d="M940 410 H1110 V225 H1136" marker-end="url(#g)"/>
+  <text class="lbl" x="964" y="402">verified items</text>
+
+  <!-- ===================== AZURE ===================== -->
+  <rect class="grp" x="30" y="530" width="1540" height="440" rx="16"/>
+  <text class="gtitle" x="50" y="558">AZURE · KEYLESS (USER-ASSIGNED MANAGED IDENTITY, LOCAL AUTH DISABLED) · BICEP + AZD</text>
+
+  <rect class="azure" x="50" y="580" width="430" height="120" rx="12"/>
+  <text class="t" x="70" y="610">Container App · api</text>
+  <text class="s" x="70" y="634">web app · REST · WebSocket · MCP endpoint</text>
+  <text class="s" x="70" y="654">live hub (1 + 2 above) · agent newsroom · Directors</text>
+  <text class="s" x="70" y="674">always-live matchday loop · agents idle when no viewers</text>
+
+  <rect class="azure" x="530" y="596" width="240" height="88" rx="12"/>
+  <text class="t" x="550" y="626">Event Hubs</text>
+  <text class="s" x="550" y="648">match-intelligence stream</text>
+  <text class="s" x="550" y="666">partition key = match</text>
+
+  <rect class="azure" x="820" y="596" width="240" height="88" rx="12"/>
+  <text class="t" x="840" y="626">Container App · archiver</text>
+  <text class="s" x="840" y="648">event-driven worker</text>
+  <text class="s" x="840" y="666">checkpointed consumer</text>
+
+  <rect class="azure" x="1110" y="596" width="440" height="88" rx="12"/>
+  <text class="t" x="1130" y="626">Cosmos DB (serverless)</text>
+  <text class="s" x="1130" y="648">fans · events · moments · broadcasts · recaps · matchdays</text>
+  <text class="s" x="1130" y="666">archive for replays, recaps and analytics</text>
+
+  <path class="line" d="M480 640 H526" marker-end="url(#a)"/>
+  <path class="line" d="M770 640 H816" marker-end="url(#a)"/>
+  <path class="line" d="M1060 640 H1106" marker-end="url(#a)"/>
+
+  <rect class="azure" x="820" y="716" width="240" height="60" rx="12"/>
+  <text class="t" x="840" y="744" font-size="15">Blob Storage</text>
+  <text class="s" x="840" y="764">Event Hubs checkpoints</text>
+  <path class="line" d="M940 684 V712" marker-end="url(#a)"/>
+
+  <rect class="ai" x="50" y="736" width="720" height="110" rx="12"/>
+  <text class="t" x="70" y="766">Microsoft Foundry project</text>
+  <text class="s" x="70" y="790">models: gpt-5-mini (Analyst, Director, Recap) · gpt-4.1-mini (Host, Pundit) · gpt-4o-mini-tts (voice)</text>
+  <text class="s" x="70" y="812">evaluations: quality gates · planted-error tests · groundedness / relevance / coherence · content safety</text>
+  <text class="s" x="70" y="832">tracing: every agent run, tool call and model call (OpenTelemetry via App Insights)</text>
+  <path class="line" d="M265 700 V732" marker-end="url(#a)"/>
+  <path class="line" d="M300 732 V704" marker-end="url(#a)"/>
+  <text class="lbl" x="310" y="722">Entra ID tokens</text>
+
+  <rect class="azure" x="1110" y="716" width="440" height="60" rx="12"/>
+  <text class="t" x="1130" y="744" font-size="15">Application Insights + Log Analytics</text>
+  <text class="s" x="1130" y="764">OpenTelemetry from app + Agent Framework → Foundry tracing</text>
+
+  <rect class="azure" x="1110" y="800" width="215" height="56" rx="12"/>
+  <text class="t" x="1128" y="826" font-size="15">Container Registry</text>
+  <text class="s" x="1128" y="845">one image, two apps</text>
+  <rect class="azure" x="1335" y="800" width="215" height="56" rx="12"/>
+  <text class="t" x="1353" y="826" font-size="15">Bicep + azd</text>
+  <text class="s" x="1353" y="845">reproducible infra</text>
+
+  <text x="50" y="944" class="s" font-size="13">Legend:</text>
+  <rect x="110" y="932" width="16" height="16" rx="4" class="det"/><text x="132" y="945" class="s">deterministic (no LLM)</text>
+  <rect x="300" y="932" width="16" height="16" rx="4" class="ai"/><text x="322" y="945" class="s">model-powered (Foundry)</text>
+  <rect x="500" y="932" width="16" height="16" rx="4" class="azure"/><text x="522" y="945" class="s">Azure service</text>
+  <path class="rline" d="M650 940 H690"/><text x="698" y="945" class="s">Verifier → Analyst correction loop</text>
+</svg>

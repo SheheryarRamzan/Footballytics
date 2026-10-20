@@ -2,9 +2,10 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { CSS2DObject, CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { useStore } from "../store";
-import { L, W, drawGrass, drawMarkings, sample } from "./shared";
+import { addBoards, addCornerFlags, animateRig, ballTexture, buildPlayer, type Rig } from "./figures";
+import { L, W, contrastText, drawGrass, drawMarkings, sample } from "./shared";
 
-const SCALE_UP = 1.45; // players drawn slightly larger than life so the broadcast camera reads them
+const SCALE_UP = 1.35; // players drawn slightly larger than life so the broadcast camera reads them
 
 const toWorld = (x: number, y: number, z = 0) => new THREE.Vector3(x - L / 2, z, -(y - W / 2));
 
@@ -36,12 +37,12 @@ function crowdTexture(): THREE.CanvasTexture {
   c.width = 1024;
   c.height = 256;
   const ctx = c.getContext("2d")!;
-  ctx.fillStyle = "#0d1426";
+  ctx.fillStyle = "#1a2440";
   ctx.fillRect(0, 0, c.width, c.height);
-  const palette = ["#1e3a8a", "#b91c1c", "#e5e7eb", "#facc15", "#0f766e", "#334155", "#7c3aed"];
-  for (let i = 0; i < 14000; i++) {
+  const palette = ["#3b82f6", "#ef4444", "#f1f5f9", "#facc15", "#14b8a6", "#64748b", "#a78bfa", "#fb923c"];
+  for (let i = 0; i < 22000; i++) {
     ctx.fillStyle = palette[Math.floor(Math.random() * palette.length)];
-    ctx.globalAlpha = 0.35 + Math.random() * 0.5;
+    ctx.globalAlpha = 0.55 + Math.random() * 0.45;
     ctx.fillRect(Math.random() * c.width, Math.random() * c.height, 2, 3);
   }
   const tex = new THREE.CanvasTexture(c);
@@ -75,6 +76,7 @@ function makeGoal(x: number): THREE.Group {
 }
 
 interface Figure {
+  rig: Rig;
   group: THREE.Group;
   ring: THREE.Mesh;
   label: CSS2DObject;
@@ -90,6 +92,10 @@ export function Pitch3D() {
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
     host.appendChild(renderer.domElement);
     const labels = new CSS2DRenderer();
     labels.domElement.className = "pitch3d-labels";
@@ -101,10 +107,17 @@ export function Pitch3D() {
     const camera = new THREE.PerspectiveCamera(30, 16 / 9, 0.5, 600);
     camera.position.set(0, 30, 80);
 
-    scene.add(new THREE.HemisphereLight("#dbeafe", "#1e293b", 0.9));
-    const sun = new THREE.DirectionalLight("#ffffff", 1.6);
-    sun.position.set(-40, 80, 50);
+    scene.add(new THREE.HemisphereLight("#dbeafe", "#1e293b", 0.95));
+    const sun = new THREE.DirectionalLight("#fff8ec", 2.1); // floodlight key light with soft shadows
+    sun.position.set(-35, 70, 45);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -62, right: 62, top: 44, bottom: -44, near: 10, far: 200 });
+    sun.shadow.bias = -0.0004;
     scene.add(sun);
+    const fill = new THREE.DirectionalLight("#bfdbfe", 0.45);
+    fill.position.set(40, 40, -50);
+    scene.add(fill);
 
     // Ground, pitch, stands
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 180), new THREE.MeshStandardMaterial({ color: "#14532d" }));
@@ -116,7 +129,10 @@ export function Pitch3D() {
       new THREE.MeshStandardMaterial({ map: pitchTexture(), roughness: 0.95 }),
     );
     pitch.rotation.x = -Math.PI / 2;
+    pitch.receiveShadow = true;
     scene.add(pitch);
+    const boardTextures = addBoards(scene, L, W);
+    addCornerFlags(scene, L, W);
     const crowd = crowdTexture();
     const standMat = new THREE.MeshStandardMaterial({ map: crowd, roughness: 1 });
     // Four tilted stands facing the pitch (x, z, width)
@@ -135,10 +151,12 @@ export function Pitch3D() {
     scene.add(makeGoal(0), makeGoal(L));
 
     const ball = new THREE.Mesh(
-      new THREE.SphereGeometry(0.34, 20, 16),
-      new THREE.MeshStandardMaterial({ color: "#ffffff", emissive: "#555", roughness: 0.3 }),
+      new THREE.SphereGeometry(0.3, 24, 18),
+      new THREE.MeshStandardMaterial({ map: ballTexture(), emissive: "#333", roughness: 0.35 }),
     );
+    ball.castShadow = true;
     scene.add(ball);
+    const lastBall = new THREE.Vector3();
     const ballShadow = new THREE.Mesh(
       new THREE.CircleGeometry(0.45, 16),
       new THREE.MeshBasicMaterial({ color: "#000", transparent: true, opacity: 0.35 }),
@@ -147,15 +165,9 @@ export function Pitch3D() {
     scene.add(ballShadow);
 
     const figures = new Map<string, Figure>();
-    const skin = ["#f1c27d", "#c68642", "#8d5524", "#e0ac69", "#ffdbac"];
-    const geo = {
-      legs: new THREE.CylinderGeometry(0.2, 0.17, 0.85, 10),
-      torso: new THREE.CylinderGeometry(0.3, 0.26, 0.75, 12),
-      head: new THREE.SphereGeometry(0.17, 12, 10),
-      shadow: new THREE.CircleGeometry(0.5, 16),
-      ring: new THREE.RingGeometry(0.62, 0.82, 28),
-    };
-    const shadowMat = new THREE.MeshBasicMaterial({ color: "#000", transparent: true, opacity: 0.3 });
+    const skin = ["#f1c27d", "#c68642", "#8d5524", "#e0ac69", "#ffdbac", "#a0662f"];
+    const hair = ["#1f1308", "#3b2414", "#0b0b0b", "#6b4423", "#d6b370"];
+    const ringGeo = new THREE.RingGeometry(0.62, 0.82, 28);
 
     function figureFor(id: string): Figure {
       let f = figures.get(id);
@@ -163,37 +175,38 @@ export function Pitch3D() {
       const { players, clubs } = useStore.getState();
       const pl = players[id];
       const club = pl ? clubs[pl.club_id] : undefined;
-      const kit = pl?.group === "GK" ? "#facc15" : club?.primary ?? "#999";
-      const group = new THREE.Group();
-      const legs = new THREE.Mesh(geo.legs, new THREE.MeshStandardMaterial({ color: club?.secondary ?? "#222" }));
-      legs.position.y = 0.43;
-      const torso = new THREE.Mesh(geo.torso, new THREE.MeshStandardMaterial({ color: kit, roughness: 0.6 }));
-      torso.position.y = 1.22;
-      const head = new THREE.Mesh(
-        geo.head,
-        new THREE.MeshStandardMaterial({ color: skin[(pl?.number ?? 0) % skin.length] }),
-      );
-      head.position.y = 1.78;
-      const shadow = new THREE.Mesh(geo.shadow, shadowMat);
-      shadow.rotation.x = -Math.PI / 2;
-      shadow.position.y = 0.02;
+      const gk = pl?.group === "GK";
+      const shirt = gk ? "#facc15" : club?.primary ?? "#999";
+      const seed = (pl?.number ?? 0) + (pl?.name.length ?? 0);
+      const rig = buildPlayer({
+        shirt,
+        shorts: gk ? "#111827" : club?.secondary ?? "#222",
+        socks: gk ? "#facc15" : club?.primary ?? "#999",
+        skin: skin[seed % skin.length],
+        hair: hair[(seed * 7) % hair.length],
+        number: pl?.number ?? 0,
+        name: pl?.short_name ?? "",
+        printColor: contrastText(shirt),
+        gk,
+      });
+      const group = rig.root;
       const ring = new THREE.Mesh(
-        geo.ring,
+        ringGeo,
         new THREE.MeshBasicMaterial({ color: "#fbbf24", transparent: true, opacity: 0.9, side: THREE.DoubleSide }),
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 0.04;
       ring.visible = false;
-      group.add(legs, torso, head, shadow, ring);
+      group.add(ring);
       group.scale.setScalar(SCALE_UP);
       const labelEl = document.createElement("div");
       labelEl.className = "tag3d";
       const label = new CSS2DObject(labelEl);
-      label.position.set(0, 2.5, 0);
+      label.position.set(0, 2.35, 0);
       label.visible = false;
       group.add(label);
       scene.add(group);
-      f = { group, ring, label, labelEl, last: new THREE.Vector3() };
+      f = { rig, group, ring, label, labelEl, last: new THREE.Vector3() };
       figures.set(id, f);
       return f;
     }
@@ -215,8 +228,12 @@ export function Pitch3D() {
     ro.observe(host);
     resize();
 
+    let lastNow = performance.now();
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
+      const dt = Math.min(0.1, (now - lastNow) / 1000);
+      lastNow = now;
+      for (const t of boardTextures) t.offset.x = (t.offset.x + dt * 0.02) % 1;
       const st = useStore.getState();
       if (st.stage !== stageSeen) {
         for (const f of figures.values()) {
@@ -243,8 +260,13 @@ export function Pitch3D() {
           const pos = toWorld(p.x, p.y);
           f.group.position.copy(pos);
           const d = pos.clone().sub(f.last);
-          if (d.lengthSq() > 0.0004) f.group.rotation.y = Math.atan2(d.x, d.z);
+          if (d.lengthSq() > 0.0004) {
+            const want = Math.atan2(d.x, d.z);
+            const diff = Math.atan2(Math.sin(want - f.group.rotation.y), Math.cos(want - f.group.rotation.y));
+            f.group.rotation.y += diff * Math.min(1, dt * 10); // turn smoothly instead of snapping
+          }
           f.last.copy(pos);
+          animateRig(f.rig, p.kmh / 3.6, dt);
           const inSquad = squad.has(id);
           f.ring.visible = inSquad;
           (f.ring.material as THREE.MeshBasicMaterial).color.set(id === st.fan?.captain ? "#fde047" : "#f59e0b");
@@ -263,7 +285,14 @@ export function Pitch3D() {
           if (!seen.has(id)) f.group.visible = false;
           else f.group.visible = true;
         }
-        const bw = toWorld(s.ball[0], s.ball[1], 0.34 + s.ball[2]);
+        const bw = toWorld(s.ball[0], s.ball[1], 0.3 + s.ball[2]);
+        const roll = bw.clone().sub(lastBall);
+        roll.y = 0;
+        if (roll.lengthSq() > 1e-6 && roll.lengthSq() < 25) {
+          const axis = new THREE.Vector3(roll.z, 0, -roll.x).normalize();
+          ball.rotateOnWorldAxis(axis, roll.length() / 0.3);
+        }
+        lastBall.copy(bw);
         ball.position.copy(bw);
         ballShadow.position.set(bw.x, 0.03, bw.z);
 

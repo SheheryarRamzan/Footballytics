@@ -9,6 +9,8 @@ Built for the **Microsoft × Premier League "Inside the Game" Developer Hackatho
 >
 > Matchdays play on a loop at 4× speed, so a match is always live. Pick a club, and the app builds you a fantasy squad and starts your personal broadcast.
 
+![Your Matchday: the Personal Director cuts to a penalty in another match because it involves the fan's squad; every card is verified and explains why it was shown](docs/images/matchday.png)
+
 ---
 
 ## What it does: one pipeline, five stages
@@ -20,6 +22,16 @@ Built for the **Microsoft × Premier League "Inside the Game" Developer Hackatho
 | **Explain** | An **agent newsroom** on Microsoft Agent Framework and Foundry explains *why* moments matter. A **Verifier** checks every number against live data and sends wrong claims back for a rewrite. |
 | **Render** | Timed, machine-readable **overlay cues** drive a broadcast graphics layer on a live **3D broadcast camera** or a **2D tactical view**. |
 | **Personalize** | A **Personal Director** cuts between matches for each fan. It weighs their fantasy squad (captain counts double), their club and their **learned taste**, and every decision answers "why am I seeing this?". |
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Player Cam follows one of your fantasy players: articulated 3D players with names and numbers, a broadcast camera and live lower-thirds](docs/images/player-cam.png) **Player Cam.** Tap a squad player and the camera follows them. | ![Broadcast 3D with a picture-in-picture alert from another match and a control-vs-chaos lower-third](docs/images/broadcast-3d.png) **Broadcast 3D.** Picture-in-picture when something big happens elsewhere. |
+| ![Analyst mode on the 2D tactical view: pitch control shading, verified analyst cards with the why](docs/images/analyst-2d.png) **Analyst mode.** Pitch control, xG, and a verified *why it matters*. | ![Match Centre: team comparison, player impact table and evidence-backed key moments](docs/images/match-centre.png) **Match Centre.** Team comparison, player impact and evidence for every moment. |
+| ![Kids mode in Urdu with a right-to-left layout: agent-written Urdu stories, Verifier badges and localized instant labels](docs/images/urdu-kids.png) **Kids mode in Urdu (RTL).** Stories written natively in Urdu by the Host agent. | ![Studio: newsroom KPIs, quality gates from the automated evaluation, broadcast items and a full agent trace with verified claims](docs/images/studio.png) **Studio.** Quality gates, the agent trace and every verified claim. |
+
+![Setup: pick a club and how you like to watch](docs/images/setup.png)
 
 ## The agents (Microsoft Agent Framework + Microsoft Foundry)
 
@@ -56,24 +68,59 @@ GitHub Copilot agent mode, Claude or a Foundry agent can query the live matchday
 
 ## Architecture (Azure)
 
-```
-             ┌──────────────── Azure Container Apps ────────────────┐
- viewers ◄──►│ api: web app · REST · WebSocket · MCP                 │──► Microsoft Foundry (gpt-5-mini, gpt-4.1-mini)
- (browser)   │      MatchForge sim ► stats engine ► agent newsroom   │       keyless via managed identity
-             │      Personal Directors (one per viewer)              │
-             └───────────────┬───────────────────────────────────────┘
-                             │ intelligence stream (partition key = match)
-                             ▼
-                      Azure Event Hubs ──► archiver (Container App) ──► Azure Cosmos DB (serverless)
-                                              │  checkpoints                 fans · events · moments
-                                              ▼                              broadcasts · recaps
-                                        Blob Storage
- Observability: OpenTelemetry (app + Agent Framework spans) ──► Application Insights / Log Analytics
- Infrastructure as code: Bicep (infra/), azd (azure.yaml)
-```
+![Architecture: MatchForge and the stats engine feed an Agent Framework workflow (Triage, Analyst, Verifier, Host, Graphics, Publisher) on Microsoft Foundry; Container Apps, Event Hubs, Cosmos DB, Blob Storage, Application Insights; keyless managed identity; Bicep + azd](docs/images/architecture.png)
 
+- **One image, two Container Apps.**
+  - The **api** app runs the web app, REST, WebSocket and MCP, plus the live hub, the newsroom and one Personal Director per viewer.
+  - The **archiver** consumes the Event Hubs stream (Blob checkpoints) and writes to **Cosmos DB** (serverless).
+- **Keyless everywhere.** One user-assigned managed identity holds the Foundry, Event Hubs, Cosmos DB, Storage and ACR roles. Local auth is disabled on every service.
+- **Observability.** OpenTelemetry from the app and from Agent Framework flows to **Application Insights**. That resource is connected to the Foundry project, so agent traces also appear under Foundry **Tracing** (see [below](#quality-automated-evaluation-and-foundry-tracing)).
 - **Always live:** matchdays loop, so judges always land on football in progress. Results fold into an evolving league table.
 - **Cost-aware:** agents only spend tokens while someone is watching.
+
+## Quality: automated evaluation and Foundry tracing
+
+Every number a fan hears has to be true. That claim is **measured on every change**, not assumed.
+
+```bash
+cd backend && .venv/Scripts/pip install -e ".[evals]"
+.venv/Scripts/python -m footballytics.evals.run --matchday 11 --items 24   # exits non-zero if a gate fails
+```
+
+The harness plays a full matchday that the newsroom has never seen. It sends 24 moments through the real Triage, Analyst, Verifier, Host and Publisher workflow in three languages (en, es, ar), then scores the output three ways:
+
+1. **Deterministic checks.**
+   - Every claim is re-checked against live data.
+   - Every number in every rendition is traced to evidence.
+   - Language coverage and latency are measured.
+2. **Planted-error tests.**
+   - For each moment, the Verifier is handed a corrupted claim and a fabricated statistic. It must catch both.
+   - An untouched control item must pass, so false alarms are measured too.
+3. **AI judges via the Azure AI Evaluation SDK.** Groundedness, relevance, coherence and fluency, plus content safety (hate, sexual, violence, self-harm). The run is **logged to the Foundry project**, so it appears under *Evaluations*.
+
+Latest run ([full report](docs/EVALUATION.md), [Foundry run](https://ai.azure.com/resource/build/evaluation/56062c0f-939a-4a6c-8d0d-6d9d05c3715a?wsid=/subscriptions/991df65a-d37a-4d15-9414-3a448ce23817/resourceGroups/rg-footballytics-dev/providers/Microsoft.CognitiveServices/accounts/fbx-ai-5dn4hvp4nnbzs/projects/footballytics&tid=c46e3e34-90fe-4e13-9135-bdf6c03b41be)): **11/11 gates pass.**
+
+| Gate | Result | Threshold |
+|---|---|---|
+| Claims accurate on air | **100%** | ≥ 98% |
+| Planted wrong claims caught | **100%** | ≥ 95% |
+| Planted fabricated stats caught | **100%** | ≥ 90% |
+| False alarms on clean items | **0%** | ≤ 10% |
+| Verified rate / language coverage | **100% / 100%** | ≥ 90% / ≥ 95% |
+| Groundedness · relevance · coherence (1–5) | **4.91 · 5.00 · 4.61** | ≥ 3.5 |
+| Content-safety defects | **0%** | – |
+| Latency p50 / p95 (Analyst + Verifier + 3-language Host) | **8.7 s / 13.3 s** | p95 ≤ 30 s |
+
+The evaluation found and fixed a real bug: the first run caught only 67% of fabricated statistics. The prose audit was too tolerant, and coordinates and IDs counted as evidence. The audit is now precision-aware, and fabrication catch is 100% with 0% false alarms. The live **Studio** shows the latest gates (`/api/evals`).
+
+**CI** (`.github/workflows/`):
+- `ci.yml` runs the tests, the realism scorecard and the frontend build on every push.
+- `evals.yml` runs the evaluation nightly, and on any pull request that touches the agents. It signs in to Azure through OIDC (no secrets), fails the build if a gate regresses, and uploads the report.
+
+**Tracing.**
+- `enable_instrumentation()` turns on Agent Framework's OpenTelemetry spans: `workflow.run`, one `executor.process` per newsroom step, `invoke_agent` and `chat gpt-5-mini`, with token usage.
+- The spans go to Application Insights. Bicep connects that resource to the Foundry project (`connections/appinsights`), so every agent run is in **Foundry → Tracing**.
+- Pundit tool calls are traced by Agent Framework function middleware and shown in the UI.
 
 ## Synthetic data: MatchForge
 
@@ -113,6 +160,8 @@ Without Foundry settings, everything except the LLM agents still runs: simulatio
 
 **Tests:** `cd backend && .venv/Scripts/python -m pytest -q` runs 28 tests covering the simulator, engine, tools, agent guard rails, personalisation and cloud routing.
 
+**Screenshots:** `python tools/screenshots.py --url http://localhost:8000/` drives the real UI with Playwright and Edge, and regenerates `docs/images/`.
+
 ## Deploy to Azure
 
 ```bash
@@ -128,18 +177,23 @@ backend/footballytics/
   sim/        MatchForge simulator, matchday runner, realism scorecard
   engine/     stats engine: metrics, moments, fantasy ledger, live processor
   agents/     newsroom workflow, prompts, verifier audit, recap, pundit, Foundry clients
+  evals/      evaluation harness: planted errors, Azure AI Evaluation judges, quality gates
   personal/   fan profiles, Personal Director, Taste Learner, rundown agent, viewer sessions
   intel/      Football Intelligence tools + MCP server
   api/        FastAPI app (REST, WebSocket, MCP, static web app)
   hub.py      live matchday hub;  cloud.py  Event Hubs / Cosmos / telemetry;  archiver.py  worker
-frontend/src/ React + three.js web app (Your Matchday, Match Centre, Studio)
-infra/        Bicep: Foundry, Container Apps, Event Hubs, Cosmos DB, Storage, ACR, monitoring
+frontend/src/ React + three.js web app (Your Matchday, Match Centre, Studio); pitch/figures.ts = 3D player rigs
+infra/        Bicep: Foundry (+ App Insights connection), Container Apps, Event Hubs, Cosmos DB, Storage, ACR, monitoring
+tools/        screenshot capture;  .github/workflows/  CI + agent evaluation gates
+docs/         EVALUATION.md (latest run), CONCEPT.md, images/
 ```
 
 ## Responsible AI
 
 - **Synthetic data only;** every club and player is fictional.
 - **Numbers are verified:** each claim is checked against data, and numbers that can't be traced are rejected or replaced by deterministic text.
+- **Continuously evaluated:** planted-error tests, AI judges and content-safety evaluators gate every change to the agents ([report](docs/EVALUATION.md)).
+- **Your language from the first second:** before the agents' text arrives, instant graphics show translated labels with names and numbers, never English filler.
 - **Explained personalization:** every cut and card carries its reasons, and the Taste Learner says what it learned.
 - **Accessibility:** audio-description mode, right-to-left layouts for Arabic and Urdu, kids mode, and reduced-motion support.
 

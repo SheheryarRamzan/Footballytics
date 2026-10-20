@@ -21,6 +21,12 @@ param appPrincipalId string = ''
 
 param tags object = {}
 
+@description('Application Insights resource ID; connected to the project so agent traces appear in Foundry')
+param appInsightsId string = ''
+
+@secure()
+param appInsightsConnectionString string = ''
+
 resource account 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   name: accountName
   location: location
@@ -59,6 +65,21 @@ resource modelDeployments 'Microsoft.CognitiveServices/accounts/deployments@2025
     versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
   }
 }]
+
+// Tracing: connect Application Insights so Agent Framework spans (agents, tools, model calls) show in Foundry.
+resource appInsightsConnection 'Microsoft.CognitiveServices/accounts/connections@2025-06-01' = if (!empty(appInsightsId)) {
+  parent: account
+  name: 'appinsights'
+  dependsOn: [modelDeployments]
+  properties: {
+    category: 'AppInsights'
+    target: appInsightsId
+    authType: 'ApiKey'
+    isSharedToAll: true
+    credentials: { key: appInsightsConnectionString }
+    metadata: { ApiType: 'Azure', ResourceId: appInsightsId }
+  }
+}
 
 // Built-in roles
 var foundryUser = '53ca6127-db72-4b80-b1b0-d745d6d5456d' // formerly 'Azure AI User'

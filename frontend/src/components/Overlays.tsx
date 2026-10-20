@@ -1,5 +1,5 @@
 import { useNow } from "../hooks";
-import { useT } from "../i18n";
+import { decisionLine, factParts, joinIsolated, kindLabel, useT } from "../i18n";
 import { matchLabel, modeText, useStore } from "../store";
 import type { ActiveOverlay } from "../store";
 
@@ -31,9 +31,11 @@ function OverlayCard({ o }: { o: ActiveOverlay }) {
   const clubs = useStore((s) => s.clubs);
   const t = useT();
   const m = o.moment;
-  const r = o.item?.renditions[lang] ?? o.item?.renditions.en;
-  const text = r ? modeText(mode, r) : modeText(mode, m.caption);
-  const label = r?.label ?? o.item?.insight.headline ?? m.caption.fan;
+  const r = o.item?.renditions[lang];
+  const instant = lang !== "en" && !r;
+  const who = m.player_ids[0] ? players[m.player_ids[0]]?.name : undefined;
+  const text = r ? modeText(mode, r) : instant ? joinIsolated([who, ...factParts(m.facts, m.kind)]) : modeText(mode, m.caption);
+  const label = r?.label ?? (instant ? kindLabel(m.kind, lang) : o.item?.insight.headline ?? kindLabel(m.kind, "en"));
   const verified = o.item && o.item.status !== "template";
   const badge = verified && (
     <span className={`badge ${o.item!.status}`} title="Every number was checked against live data by the Verifier agent">
@@ -41,12 +43,11 @@ function OverlayCard({ o }: { o: ActiveOverlay }) {
     </span>
   );
   const team = m.team_id ? clubs[m.team_id] : undefined;
-  const who = m.player_ids[0] ? players[m.player_ids[0]]?.name : undefined;
 
   if (o.template === "goal_card") {
     return (
       <div className="ov-goal" style={{ ["--team" as any]: team?.primary ?? "#22d3a6" }}>
-        <div className="ov-goal-word">{m.kind === "wonder_strike" ? "WONDER GOAL" : "GOAL"}</div>
+        <div className="ov-goal-word">{kindLabel(m.kind === "wonder_strike" ? "wonder_strike" : "goal", lang)}</div>
         <div className="ov-goal-who">{who} · {team?.name}</div>
         <div className="ov-goal-facts">
           {m.facts.xg != null && <span>xG {Number(m.facts.xg).toFixed(2)}</span>}
@@ -70,7 +71,7 @@ function OverlayCard({ o }: { o: ActiveOverlay }) {
   if (o.template === "full_screen") {
     return (
       <div className="ov-full">
-        <div className="ov-full-title">{m.kind === "full_time" ? "FULL TIME" : "HALF TIME"}</div>
+        <div className="ov-full-title">{kindLabel(m.kind === "full_time" ? "full_time" : "half_time", lang)}</div>
         <div className="ov-full-score">{m.facts.score}</div>
         <div className="ov-full-stats">
           xG {Number(m.facts.xg_home ?? 0).toFixed(2)} – {Number(m.facts.xg_away ?? 0).toFixed(2)} · Shots {m.facts.shots_home} – {m.facts.shots_away}
@@ -97,6 +98,7 @@ export function Overlays() {
   const pip = useStore((s) => s.pip);
   const setStage = useStore((s) => s.setStage);
   const toast = useStore((s) => s.toast);
+  const lang = useStore((s) => s.fan?.language ?? "en");
   const t = useT();
   const active = overlays.filter((o) => o.until > now);
   const goal = active.find((o) => o.template === "goal_card" || o.template === "full_screen");
@@ -111,7 +113,7 @@ export function Overlays() {
           <div className="pip-head">
             <span className="pip-dot" /> {matchLabel(pip.match_id)} · {pip.minute}'
           </div>
-          <div className="pip-line">{pip.line}</div>
+          <div className="pip-line">{decisionLine(pip, lang)}</div>
           <button className="btn small" onClick={() => setStage(pip.match_id)}>
             {t("watch")} →
           </button>

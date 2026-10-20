@@ -4,6 +4,38 @@ import { usePoll } from "../hooks";
 import { useStore } from "../store";
 
 /** Producer console: the agent newsroom's work, machine-readable overlay cues, health and controls. */
+function Quality() {
+  const ev = usePoll(() => fetch("/api/evals").then((r) => (r.ok ? r.json() : null)), 60_000, []);
+  if (!ev) return null;
+  const s = ev.summary;
+  const pct = (v?: number | null) => (v == null ? "–" : `${Math.round(v * 100)}%`);
+  const passed = ev.gates.filter((g: any) => g.pass).length;
+  return (
+    <section className="panel studio-quality">
+      <h2>
+        Quality gates · automated evaluation
+        <span className={`badge ${passed === ev.gates.length ? "verified" : "pending"}`}>
+          {passed}/{ev.gates.length} passed
+        </span>
+      </h2>
+      <div className="kpis">
+        <div><b>{pct(s.final_claim_accuracy)}</b><span>claims accurate on air</span></div>
+        <div><b>{pct(s.planted_claim_catch_rate)}</b><span>planted wrong stats caught</span></div>
+        <div><b>{pct(s.planted_fabrication_catch_rate)}</b><span>invented stats caught</span></div>
+        <div><b>{s.groundedness?.toFixed(2) ?? "–"}</b><span>groundedness (1-5, AI judge)</span></div>
+        <div><b>{s.coherence?.toFixed(2) ?? "–"}</b><span>coherence (1-5)</span></div>
+        <div><b>{pct(s.content_safety_defect_rates ? Math.max(...Object.values(s.content_safety_defect_rates as Record<string, number>)) : null)}</b><span>content-safety defects</span></div>
+      </div>
+      <p className="muted small">
+        {ev.meta.name}: {s.items} moments, {pct(s.language_coverage)} language coverage, p95 {s.latency_p95_s?.toFixed(1)}s.{" "}
+        {s.foundry_url && (
+          <a href={s.foundry_url} target="_blank" rel="noreferrer">Open the run in Microsoft Foundry →</a>
+        )}
+      </p>
+    </section>
+  );
+}
+
 export function Studio() {
   const items = useStore((s) => s.items);
   const health = usePoll(() => api.health(), 3000, []);
@@ -32,6 +64,7 @@ export function Studio() {
           <code className="mcp" title="Connect GitHub Copilot, Claude or any MCP client">MCP: {location.origin}/mcp-server/mcp</code>
         </div>
       </section>
+      <Quality />
       <section className="panel studio-list">
         <h2>Broadcast items</h2>
         <ul>

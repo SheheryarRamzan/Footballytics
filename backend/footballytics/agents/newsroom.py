@@ -139,25 +139,7 @@ class VerifierExecutor(Executor):
     async def verify(self, draft: Draft, ctx: WorkflowContext[NewsTask | Verified]) -> None:
         t0 = time.perf_counter()
         task, ins = draft.task, draft.insight
-        moment_ids = {"moment", task.moment["moment_id"]}
-        own = [c.model_dump() for c in ins.claims if c.subject_id in moment_ids]
-        live = [c.model_dump() for c in ins.claims if c.subject_id not in moment_ids]
-        checks = tools.verify_claims(task.moment["match_id"], live) + check_moment_facts(task, own)
-        problems = []
-        for c in checks:
-            if not c["ok"]:
-                if c.get("actual") is None:
-                    problems.append(f"Claim {c['subject_id']}.{c['metric']}={c['value']} cannot be checked "
-                                    f"(unknown subject or metric). Remove it or use a supported metric.")
-                else:
-                    problems.append(f"Claim {c['subject_id']}.{c['metric']}={c['value']} is wrong: the live value "
-                                    f"is {c['actual']}. Correct the text and the claim.")
-        verified_values = [c["actual"] for c in checks if c["ok"]]
-        texts = [ins.headline, ins.why_it_matters, ins.tactical_angle or ""]
-        bad_numbers = unsupported_numbers(texts, [task.context, verified_values], always_ok=[task.moment["minute"]])
-        if bad_numbers:
-            problems.append(f"These numbers are not supported by the evidence: {', '.join(bad_numbers)}. "
-                            f"Use only numbers from the context, or remove them.")
+        checks, problems = review(task, ins)
         note = "all claims verified" if not problems else f"{len(problems)} issue(s)"
         task.trace.append({"agent": "verifier", "attempt": task.attempt, "ms": _ms(t0), "note": note,
                            "issues": problems})
@@ -267,7 +249,8 @@ class Newsroom:
                 .add_fan_in_edges([host, graphics], publisher)
                 .build())
 
-    async def process(self, moment: Moment | dict, languages: list[str] | None = None) -> dict:
+    async def process(self, moment: Moment | dict, languages: list[str] | None = None,
+                      include_context: bool = False) -> dict:
         m = moment.to_dict() if isinstance(moment, Moment) else moment
         if m["importance"] < self.min_importance:
             return template_item(m, "below threshold")
@@ -276,7 +259,10 @@ class Newsroom:
             try:
                 result = await self.workflow().run(task)
                 outputs = result.get_outputs()
-                return outputs[-1] if outputs else template_item(m, "no output")
+                item = outputs[-1] if outputs else template_item(m, "no output")
+                if include_context:  # used by the evaluation suite
+                    item = {**item, "context": task.context, "moment": m}
+                return item
             except Exception as exc:  # model outage must never blank the broadcast
                 log.exception("newsroom failed for %s", m["moment_id"])
                 item = template_item(m, f"fallback after error: {type(exc).__name__}")
@@ -309,6 +295,31 @@ def build_context(m: dict) -> dict:
     return {"moment": {k: m[k] for k in ("moment_id", "kind", "minute", "importance", "facts", "why")},
             "evidence": exp["evidence"], "match": match, "players": players, "table_before_matchday": team_ctx,
             "names": names}
+
+
+def review(task: NewsTask, ins: Insight) -> tuple[list[dict], list[str]]:
+    """The Verifier's checks as a pure function (also used by the evaluation suite):
+    every claim against live data / moment facts, and every number in the prose against the evidence."""
+    moment_ids = {"moment", task.moment["moment_id"]}
+    own = [c.model_dump() for c in ins.claims if c.subject_id in moment_ids]
+    live = [c.model_dump() for c in ins.claims if c.subject_id not in moment_ids]
+    checks = tools.verify_claims(task.moment["match_id"], live) + check_moment_facts(task, own)
+    problems = []
+    for c in checks:
+        if not c["ok"]:
+            if c.get("actual") is None:
+                problems.append(f"Claim {c['subject_id']}.{c['metric']}={c['value']} cannot be checked "
+                                f"(unknown subject or metric). Remove it or use a supported metric.")
+            else:
+                problems.append(f"Claim {c['subject_id']}.{c['metric']}={c['value']} is wrong: the live value "
+                                f"is {c['actual']}. Correct the text and the claim.")
+    verified_values = [c["actual"] for c in checks if c["ok"]]
+    texts = [ins.headline, ins.why_it_matters, ins.tactical_angle or ""]
+    bad_numbers = unsupported_numbers(texts, [task.context, verified_values], always_ok=[task.moment["minute"]])
+    if bad_numbers:
+        problems.append(f"These numbers are not supported by the evidence: {', '.join(bad_numbers)}. "
+                        f"Use only numbers from the context, or remove them.")
+    return checks, problems
 
 
 def check_moment_facts(task: NewsTask, claims: list[dict]) -> list[dict]:

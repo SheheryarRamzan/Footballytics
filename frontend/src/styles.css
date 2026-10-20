@@ -139,6 +139,7 @@ select, input {
   background: rgba(7, 11, 22, 0.88); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); font-weight: 800;
   direction: ltr;
 }
+[dir="rtl"] .scorebug { inset-inline-start: auto; right: 14px; } /* RTL: scorebug right, PiP left */
 .sb-team { padding: 6px 10px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); letter-spacing: 0.5px; }
 .sb-score { padding: 6px 12px; font-size: 16px; font-variant-numeric: tabular-nums; background: #fff; color: #0b1020; }
 .sb-score i { font-style: normal; margin: 0 4px; opacity: 0.5; }
@@ -224,7 +225,7 @@ select, input {
 .sq-name em.bn { background: transparent; border: 1px solid var(--line); color: var(--muted); }
 .squad li.bench .sq-row { opacity: 0.55; }
 .sq-club { font-size: 11px; color: var(--muted); }
-.sq-pts { font-weight: 800; text-align: end; font-variant-numeric: tabular-nums; }
+.sq-pts { font-weight: 800; text-align: end; font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
 
 .feed ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 52vh; overflow-y: auto; }
 .feed-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; animation: rise 0.3s ease-out; }
@@ -245,7 +246,7 @@ select, input {
 .fc-why { margin-top: 6px; font-size: 12px; background: var(--panel); border-radius: 8px; padding: 8px; }
 .fc-why ul { margin: 4px 0; padding-inline-start: 16px; display: block; max-height: none; }
 .feed-points { display: flex; gap: 8px; align-items: center; font-size: 12.5px; padding: 4px 8px; border-radius: 8px; background: rgba(251, 191, 36, 0.08); }
-.feed-points .pts { font-weight: 800; color: var(--gold); min-width: 28px; }
+.feed-points .pts { font-weight: 800; color: var(--gold); min-width: 28px; direction: ltr; unicode-bidi: isolate; }
 .feed-points.down .pts { color: var(--danger); }
 
 .ask { display: flex; gap: 6px; }
@@ -285,7 +286,8 @@ table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 
 /* ---------- studio ---------- */
 .studio { display: grid; grid-template-columns: 420px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 14px; padding: 14px 18px; min-height: 0; }
-.studio-stats { grid-column: 1 / -1; }
+.studio-stats, .studio-quality { grid-column: 1 / -1; }
+.studio-quality a { color: var(--accent-2); }
 .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .kpis div { background: var(--panel-2); border-radius: 10px; padding: 10px; display: grid; }
 .kpis b { font-size: 20px; }

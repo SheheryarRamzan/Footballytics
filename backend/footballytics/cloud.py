@@ -50,7 +50,9 @@ def setup_telemetry() -> bool:
     configure_azure_monitor(connection_string=conn, logger_name="footballytics")
     from agent_framework.observability import enable_instrumentation
 
-    enable_instrumentation(enable_sensitive_data=False)  # agent/tool spans without prompt contents
+    # Agent, tool and model spans (gen_ai semantic conventions) for Foundry tracing. The data is synthetic, so
+    # prompts and outputs may be captured (TRACE_CONTENT=1) to make traces fully inspectable.
+    enable_instrumentation(enable_sensitive_data=os.getenv("TRACE_CONTENT", "0") == "1")
     logging.getLogger("footballytics").setLevel(logging.INFO)
     log.info("telemetry enabled")
     return True

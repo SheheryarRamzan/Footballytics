@@ -123,8 +123,11 @@ class PersonalDirector:
         rel, reasons = self.relevance(moment)
         mid = moment["match_id"]
         line = self.personal_line(moment)
+        players = moment.get("player_ids", [])
+        # player + facts let clients build a language-neutral line for non-English viewers
         base = dict(match_id=mid, relevance=rel, reasons=reasons, line=line, moment_id=moment["moment_id"],
-                    kind=moment["kind"], minute=moment.get("minute"))
+                    kind=moment["kind"], minute=moment.get("minute"),
+                    data={"player_id": players[0] if players else None, "facts": moment.get("facts", {})})
         personal = any(p in self.squad for p in moment.get("player_ids", [])) or             self.match_involves_club(mid)
         must_cut = personal and rel >= 1.0 and moment["kind"] in ("goal", "wonder_strike", "penalty_awarded",
                                                                    "red_card")

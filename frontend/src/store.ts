@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { decisionLine, tr } from "./i18n";
 import type {
   BroadcastItem,
   Club,
@@ -251,7 +252,10 @@ function handle(msg: any) {
           liveFrames.prev = liveFrames.cur = null;
           liveFrames.match = d.match_id;
         }
-        if (d.action === "cut") useStore.getState().showToast(`Cutting to ${matchTeams(d.match_id)}: ${d.line}`);
+        if (d.action === "cut") {
+          const lang = useStore.getState().fan?.language ?? "en";
+          useStore.getState().showToast(`${tr("cutting", lang)} ${matchTeams(d.match_id)}: ${decisionLine(d, lang)}`);
+        }
       }
       if (d.action === "pip") {
         useStore.setState({ pip: d });

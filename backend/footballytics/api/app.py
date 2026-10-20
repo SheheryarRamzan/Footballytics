@@ -87,6 +87,15 @@ def health() -> dict:
                       "eventhub": EVENTHUB.stats() if EVENTHUB is not None else None}}
 
 
+@app.get("/api/evals")
+def evals() -> dict:
+    """Latest newsroom evaluation (quality gates, planted-error tests, AI judges), bundled with the build."""
+    path = Path(__file__).resolve().parents[1] / "seed" / "evals_latest.json"
+    if not path.exists():
+        raise HTTPException(404, "no evaluation has been run yet")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 @app.get("/api/recaps")
 def recaps() -> list[dict]:
     return list(AGENTS.recaps.values())

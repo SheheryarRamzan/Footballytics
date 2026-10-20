@@ -55,6 +55,8 @@ module foundry 'modules/foundry.bicep' = {
     tags: tags
     developerPrincipalId: principalId
     appPrincipalId: registry.outputs.identityPrincipalId
+    appInsightsId: monitoring.outputs.appInsightsId
+    appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     deployments: [
       // Reasoning agents (Analyst, Director, Recap): quality with controllable reasoning effort.
       { name: 'gpt-5-mini', model: 'gpt-5-mini', version: '2025-08-07', sku: 'GlobalStandard', capacity: 200 }
@@ -114,6 +116,7 @@ module apps 'modules/apps.bicep' = if (deployApps) {
       { name: 'CHECKPOINT_BLOB_URL', value: data.outputs.blobUrl }
       { name: 'CHECKPOINT_CONTAINER', value: data.outputs.checkpointContainer }
       { name: 'AUTOLOOP', value: '1' }
+      { name: 'TRACE_CONTENT', value: '1' } // synthetic data: include prompts/outputs in Foundry traces
       { name: 'SPEED', value: speed }
       { name: 'MATCHDAY', value: '9' }
     ]

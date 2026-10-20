@@ -1,0 +1,43 @@
+# Agent quality gates: runs the newsroom against Microsoft Foundry and fails if quality regresses.
+# Setup: an Entra app with a federated credential for this repo (OIDC) holding the "Foundry User",
+# "Cognitive Services OpenAI User" roles on the Foundry account; repo variables below.
+name: agent-evals
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"
+  pull_request:
+    paths: ["backend/footballytics/agents/**", "backend/footballytics/evals/**"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    env:
+      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
+      MODEL_REASONING: gpt-5-mini
+      MODEL_FAST: gpt-4.1-mini
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - run: pip install -e ".[cloud,dev]" azure-ai-evaluation
+      - name: Newsroom evaluation with quality gates
+        run: python -m footballytics.evals.run --matchday 11 --items 24
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-report
+          path: |
+            docs/EVALUATION.md
+            backend/evals/results/latest.json

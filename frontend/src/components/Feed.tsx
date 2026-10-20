@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
-import { useT } from "../i18n";
+import { instantLine, useT } from "../i18n";
 import { matchLabel, modeText, useStore } from "../store";
 import type { FeedEntry } from "../store";
 
@@ -20,6 +20,8 @@ function Card({ e }: { e: FeedEntry }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const mode = fan?.mode ?? "fan";
+  const lang = fan?.language ?? "en";
+  const players = useStore((s) => s.players);
   const d = e.decision;
 
   if (e.recap) {
@@ -45,14 +47,18 @@ function Card({ e }: { e: FeedEntry }) {
     return (
       <li className={`feed-points ${pts >= 0 ? "up" : "down"}`}>
         <span className="pts">{pts > 0 ? `+${pts}` : pts}</span>
-        <span>{d.line}</span>
+        <span>{lang === "en" ? d.line : players[d.data?.player_id]?.name}</span>
       </li>
     );
   }
   const kind = e.moment?.kind ?? e.item?.kind ?? d?.kind ?? "";
-  const r = e.item ? e.item.renditions[fan?.language ?? "en"] ?? e.item.renditions.en : undefined;
-  const headline = r?.label ?? e.item?.insight.headline ?? d?.line ?? e.moment?.caption.fan;
-  const body = r ? modeText(mode, r) : e.moment ? modeText(mode, e.moment.caption) : "";
+  const r = e.item?.renditions[lang];
+  // no rendition in this language (yet): show the label, player and numbers, never English filler
+  const instant = lang !== "en" && !r;
+  const headline = r?.label ?? (instant
+    ? instantLine(kind, e.moment?.player_ids[0] ?? d?.data?.player_id, e.moment?.facts ?? d?.data?.facts, lang)
+    : e.item?.insight.headline ?? d?.line ?? e.moment?.caption.fan);
+  const body = r ? modeText(mode, r) : !instant && e.moment ? modeText(mode, e.moment.caption) : "";
   const minute = e.moment?.minute ?? e.item?.minute ?? d?.minute;
   const feedback = async (signal: string) => {
     if (!fan || !kind) return;
@@ -76,10 +82,10 @@ function Card({ e }: { e: FeedEntry }) {
         )}
         {!e.item && <span className="badge pending" title="Instant template; the agents are writing the full story">live</span>}
       </div>
-      {d?.line && d.line !== headline && <div className="fc-personal">{d.line}</div>}
+      {lang === "en" && d?.line && d.line !== headline && <div className="fc-personal">{d.line}</div>}
       <div className="fc-headline">{headline}</div>
       {body && body !== headline && <p className="fc-body">{body}</p>}
-      {mode === "analyst" && e.item?.insight.why_it_matters && (
+      {mode === "analyst" && lang === "en" && e.item?.insight.why_it_matters && (
         <p className="fc-why-text">{e.item.insight.why_it_matters}</p>
       )}
       <div className="fc-actions">

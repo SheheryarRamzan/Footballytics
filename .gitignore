@@ -32,3 +32,5 @@ Thumbs.db
 !.vscode/mcp.json
 .idea/
 *.tsbuildinfo
+backend/evals/results/*.json*
+!backend/evals/results/latest.json
