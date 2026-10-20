@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+# One command deploy:  azd up   (provisions infra/main.bicep, builds the image in ACR, deploys both apps)
+name: footballytics
+metadata:
+  template: footballytics@0.3.0
+infra:
+  provider: bicep
+  path: infra
+  module: main
+services:
+  api:
+    project: .
+    language: docker
+    host: containerapp
+    docker:
+      path: Dockerfile
+      context: .
+      remoteBuild: false  # ACR Tasks are unavailable on trial subscriptions; build with local Docker
+  archiver:
+    project: .
+    language: docker
+    host: containerapp
+    docker:
+      path: Dockerfile
+      context: .
+      remoteBuild: false  # ACR Tasks are unavailable on trial subscriptions; build with local Docker

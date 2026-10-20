@@ -11,7 +11,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from collections import Counter
+from collections.abc import Callable
 
 from ..hub import LiveHub
 from ..jsonutil import to_jsonable
@@ -26,7 +28,13 @@ class AgentService:
         self.min_importance = float(min_importance or os.getenv("NEWSROOM_MIN_IMPORTANCE", "50"))
         self.languages: Counter[str] = Counter()
         self.broadcast_log: list[dict] = []
+        self.recaps: dict[str, dict] = {}
         self.enabled = is_configured() and os.getenv("AGENTS", "1") == "1"
+        # Agents only spend tokens while someone is watching (plus a short grace period).
+        self.viewers: Callable[[], int] = lambda: 1
+        self.idle_grace_s = float(os.getenv("AGENTS_IDLE_GRACE_S", "180"))
+        self._last_viewer = time.time()
+        self.skipped_idle = 0
         self._tasks: set[asyncio.Task] = set()
         self.newsroom = None
         if self.enabled:
@@ -46,15 +54,40 @@ class AgentService:
     def remove_viewer_languages(self, langs: list[str]) -> None:
         self.languages.subtract(langs)
 
+    def watching(self) -> bool:
+        if self.viewers() > 0:
+            self._last_viewer = time.time()
+            return True
+        return time.time() - self._last_viewer < self.idle_grace_s
+
+    def _spawn(self, coro) -> None:
+        task = asyncio.create_task(coro)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
     async def on_message(self, msg: dict) -> None:
         if msg["kind"] != "moment" or not self.enabled:
             return
         moment = msg["data"]
+        if not self.watching():
+            self.skipped_idle += 1
+            return
+        if moment["kind"] == "full_time":
+            self._spawn(self._recap(moment["match_id"]))
         if moment["importance"] < self.min_importance:
             return
-        task = asyncio.create_task(self._produce(moment, self.wanted_languages()))
-        self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
+        self._spawn(self._produce(moment, self.wanted_languages()))
+
+    async def _recap(self, match_id: str) -> None:
+        from .recap import recap
+
+        try:
+            r = to_jsonable(await recap(match_id))
+        except Exception:
+            log.exception("recap failed for %s", match_id)
+            return
+        self.recaps[match_id] = r
+        await self.hub.publish({"kind": "recap", "match_id": match_id, "data": r})
 
     async def _produce(self, moment: dict, languages: list[str]) -> None:
         assert self.newsroom is not None
@@ -72,4 +105,7 @@ class AgentService:
             "latency_p50_ms": lat[len(lat) // 2] if lat else None,
             "latency_p95_ms": lat[int(len(lat) * 0.95)] if lat else None,
             "languages": self.wanted_languages(),
+            "recaps": len(self.recaps),
+            "watching": self.watching(),
+            "skipped_while_idle": self.skipped_idle,
         }

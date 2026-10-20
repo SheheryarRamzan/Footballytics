@@ -18,6 +18,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -98,6 +99,8 @@ class LiveHub:
         self.speed = 1.0
         self.frame_every = 2
         self.running = False
+        self.looping = False
+        self.loaded_at = time.time()
         self._task: asyncio.Task | None = None
 
     # ------------------------------------------------------------- setup
@@ -105,6 +108,7 @@ class LiveHub:
         self.matchday = matchday
         self.matches.clear()
         self.moment_log.clear()
+        self.loaded_at = time.time()
         players = self.season.get("players", {})
         for i, (h, a) in enumerate(fixtures(self.league)[matchday - 1]):
             mid = match_id_for(matchday, h, a)
@@ -178,6 +182,63 @@ class LiveHub:
 
     def stop(self) -> None:
         self.running = False
+        self.looping = False
+
+    def start_loop(self, speed: float = 4.0, gap_s: float = 45.0) -> asyncio.Task:
+        """Play matchday after matchday forever (for an always-live public demo)."""
+        self.speed = speed
+        self._task = asyncio.create_task(self.run_forever(speed, gap_s))
+        return self._task
+
+    async def run_forever(self, speed: float, gap_s: float) -> None:
+        self.looping = True
+        while self.looping:
+            await self.run(self.speed)
+            if not self.looping:
+                break
+            self.apply_results()
+            await self.publish({"kind": "matchday_end", "data": {"matchday": self.matchday,
+                                                                "table": self.season.get("table", [])[:20]}})
+            await asyncio.sleep(gap_s)
+            nxt = (self.matchday or 0) + 1
+            self.load_matchday(nxt if nxt <= 38 else 9)
+            await self.publish({"kind": "matchday", "data": {"matchday": self.matchday, "speed": self.speed,
+                                                            "matches": [m.summary() for m in self.matches.values()]}})
+
+    def apply_results(self) -> None:
+        """Fold finished matches into the season table and player totals so the league evolves."""
+        if not self.season:
+            return
+        table = {r["club"]: r for r in self.season.get("table", [])}
+        players = self.season.setdefault("players", {})
+        for m in self.matches.values():
+            if not m.done:
+                continue
+            h, a = m.meta["home"], m.meta["away"]
+            hg, ag = m.proc.score[h], m.proc.score[a]
+            for club, gf, ga in ((h, hg, ag), (a, ag, hg)):
+                row = table.get(club)
+                if row is None:
+                    continue
+                res = "W" if gf > ga else "D" if gf == ga else "L"
+                row["p"] += 1
+                row["gf"] += gf
+                row["ga"] += ga
+                row[{"W": "w", "D": "d", "L": "l"}[res]] += 1
+                row["pts"] += {"W": 3, "D": 1, "L": 0}[res]
+                row["form"] = (row.get("form", []) + [res])[-5:]
+                row["gd"] = row["gf"] - row["ga"]
+            for pid, st in m.proc.players.items():
+                tot = players.setdefault(pid, {"apps": 0, "goals": 0, "assists": 0, "shots": 0, "yellow": 0,
+                                               "red": 0, "clean_sheets": 0})
+                tot["apps"] += 1
+                for k in ("goals", "assists", "shots", "yellow", "red"):
+                    tot[k] += getattr(st, k)
+        ranked = sorted(table.values(), key=lambda r: (-r["pts"], -r["gd"], -r["gf"], r["name"]))
+        for i, row in enumerate(ranked, 1):
+            row["pos"] = i
+        self.season["table"] = ranked
+        self.season["played_matchdays"] = self.matchday
 
     # ------------------------------------------------------------- queries
     def match(self, match_id: str) -> LiveMatch:
@@ -192,8 +253,12 @@ class LiveHub:
         raise KeyError(f"unknown moment_id {moment_id!r}")
 
 
+SEED_SEASON = Path(__file__).resolve().parent / "seed" / "season.json"
+
+
 def load_season(path: Path | None = None) -> dict:
-    path = path or DATA_DIR / "season" / "season.json"
-    if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
+    """Season history before the live matchday: locally generated if present, else the packaged seed."""
+    for candidate in (path, DATA_DIR / "season" / "season.json", SEED_SEASON):
+        if candidate and candidate.exists():
+            return json.loads(candidate.read_text(encoding="utf-8"))
     return {}

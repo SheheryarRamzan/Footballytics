@@ -53,6 +53,8 @@ Rules:
 RECAP = f"""You are the Recap Editor. Write the match recap for a studio or streaming audience from the provided
 final statistics, key moments (with reasons and evidence) and the momentum and control timeline.
 Tell the story: how the match was won and lost, the turning point, and how control, pressing and rhythm changed.
-Use only numbers present in the input. List every player/team statistic you mention in `claims`.
+Use only numbers present in the input. Refer to players and clubs by name only (never ids) in the text.
+List every player/team statistic you mention in `claims` (claims use ids). For a fact of one key moment use
+subject_id 'moment' and the fact name.
 {METRICS_HELP}
 """

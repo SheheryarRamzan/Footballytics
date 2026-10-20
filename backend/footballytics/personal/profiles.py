@@ -118,11 +118,21 @@ def validate_squad(league: League, squad: list[str]) -> list[str]:
 
 
 class ProfileStore:
-    """In-memory store (swapped for Cosmos DB in Azure, same interface)."""
+    """Fan profiles in memory, persisted to Cosmos DB when configured (survives restarts and replicas)."""
 
-    def __init__(self, league: League):
+    def __init__(self, league: League, cosmos=None):
         self.league = league
+        self.cosmos = cosmos
         self._fans: dict[str, FanProfile] = {}
+
+    def save(self, fan: FanProfile) -> None:
+        if self.cosmos is not None:
+            try:
+                self.cosmos.upsert("fans", {**fan.to_dict(), "id": fan.fan_id})
+            except Exception:  # persistence must never break the live experience
+                import logging
+
+                logging.getLogger("footballytics.fans").exception("could not persist fan %s", fan.fan_id)
 
     def create(self, favorite_club: str = "RIV", mode: str = "fan", language: str = "en",
                display_name: str = "Fan", squad: list[str] | None = None, captain: str | None = None) -> FanProfile:
@@ -138,9 +148,15 @@ class ProfileStore:
         fan = FanProfile(fan_id, display_name, favorite_club, squad, captain, vice,
                          mode if mode in MODES else "fan", language)
         self._fans[fan_id] = fan
+        self.save(fan)
         return fan
 
     def get(self, fan_id: str) -> FanProfile:
+        if fan_id not in self._fans and self.cosmos is not None:
+            data = self.cosmos.read("fans", fan_id, fan_id)
+            if data:
+                fields = FanProfile.__dataclass_fields__
+                self._fans[fan_id] = FanProfile(**{k: v for k, v in data.items() if k in fields})
         if fan_id not in self._fans:
             raise KeyError(f"unknown fan {fan_id}")
         return self._fans[fan_id]
@@ -156,4 +172,5 @@ class ProfileStore:
         for key in ("display_name", "favorite_club", "language", "captain", "vice_captain", "focus_player"):
             if key in changes and changes[key] is not None:
                 setattr(fan, key, changes[key])
+        self.save(fan)
         return fan

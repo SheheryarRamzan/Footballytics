@@ -70,6 +70,14 @@ class ViewerSession:
     # ------------------------------------------------------------------ hub messages
     def on_hub(self, msg: dict) -> list[dict]:
         kind = msg["kind"]
+        if kind == "matchday":
+            # A new matchday started: re-plan the fan's show around the new fixtures.
+            out = [msg]
+            if self.fan:
+                out += self.on_client({"fan_id": self.fan.fan_id})
+            else:
+                self.focus = next(iter(self.hub.matches), None)
+            return out
         if kind in ("frame", "event"):
             return [msg] if msg["match_id"] == self.focus else []
         out = [self._trim(msg)] if kind == "broadcast" else [msg]

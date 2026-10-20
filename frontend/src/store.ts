@@ -29,6 +29,21 @@ export interface FeedEntry {
   moment?: Moment;
   decision?: Decision;
   item?: BroadcastItem;
+  recap?: Recap;
+}
+
+export interface Recap {
+  match_id: string;
+  headline: string;
+  summary: string;
+  turning_point: string;
+  tactical_story: string;
+  player_of_the_match_name: string;
+  player_of_the_match_reason: string;
+  status: string;
+  score: Record<string, number>;
+  home: string;
+  away: string;
 }
 
 export interface ActiveOverlay {
@@ -158,6 +173,26 @@ function handle(msg: any) {
       if (!s.fan && !s.stage && msg.data.matches.length) {
         useStore.getState().setStage(msg.data.matches[0].match_id);
       }
+      break;
+    }
+    case "matchday": {
+      const matches: Record<string, MatchSummary> = {};
+      for (const m of msg.data.matches as MatchSummary[]) matches[m.match_id] = m;
+      useStore.setState({ matchday: msg.data.matchday, matches, order: Object.keys(matches), overlays: [], pip: null });
+      useStore.getState().showToast(`Matchday ${msg.data.matchday} is kicking off`);
+      if (!s.fan && msg.data.matches.length) useStore.getState().setStage(msg.data.matches[0].match_id);
+      break;
+    }
+    case "matchday_end": {
+      useStore.getState().showToast(`Matchday ${msg.data.matchday} is over. The next one starts shortly.`);
+      break;
+    }
+    case "recap": {
+      const r = msg.data as Recap;
+      const { fan, stage, matches } = useStore.getState();
+      const m = matches[r.match_id];
+      const mine = r.match_id === stage || (fan && m && (m.home === fan.favorite_club || m.away === fan.favorite_club));
+      if (mine) addFeed({ key: `recap-${r.match_id}`, at: Date.now(), match_id: r.match_id, recap: r });
       break;
     }
     case "tick": {

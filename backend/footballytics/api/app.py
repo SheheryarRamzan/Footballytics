@@ -1,7 +1,9 @@
 """Footballytics API: live hub + REST + WebSocket stream + MCP server (+ the built web app), one ASGI app.
 
 Run locally:  uvicorn footballytics.api.app:app --port 8000
-Env:  MATCHDAY (default 9), SPEED sim-seconds per wall-second (default 4), AUTOSTART (default 1)
+Env:  MATCHDAY (default 9), SPEED sim-seconds per wall-second (default 4), AUTOSTART (default 1),
+      AUTOLOOP (default 0: play one matchday; 1: play matchday after matchday forever)
+      plus the optional Azure settings documented in footballytics/cloud.py
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from ..agents.service import AgentService
+from ..cloud import cosmos_from_env, eventhub_from_env, setup_telemetry
 from ..hub import LiveHub
 from ..intel import mcp_server, tools
 from ..jsonutil import dumps, to_jsonable
@@ -29,20 +32,32 @@ from ..personal.profiles import ProfileStore
 from ..personal.session import ViewerSession
 
 log = logging.getLogger("footballytics.api")
+TELEMETRY = setup_telemetry()
 HUB = LiveHub()
 MCP = mcp_server.build()
 AGENTS = AgentService(HUB)
-FANS = ProfileStore(HUB.league)
+COSMOS = cosmos_from_env()
+FANS = ProfileStore(HUB.league, COSMOS)
 SESSIONS: set[ViewerSession] = set()
+AGENTS.viewers = lambda: len(SESSIONS)
+EVENTHUB = None
 WEB_DIST = Path(os.getenv("WEB_DIST", Path(__file__).resolve().parents[3] / "frontend" / "dist"))
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global EVENTHUB
     tools.bind(HUB)
+    EVENTHUB = eventhub_from_env()
+    if EVENTHUB is not None:
+        HUB.sinks.append(EVENTHUB)
     HUB.load_matchday(int(os.getenv("MATCHDAY", "9")))
+    speed = float(os.getenv("SPEED", "4"))
     if os.getenv("AUTOSTART", "1") == "1":
-        HUB.start(speed=float(os.getenv("SPEED", "4")))
+        if os.getenv("AUTOLOOP", "0") == "1":
+            HUB.start_loop(speed=speed, gap_s=float(os.getenv("MATCHDAY_GAP_S", "45")))
+        else:
+            HUB.start(speed=speed)
     async with MCP.session_manager.run():
         yield
     HUB.stop()
@@ -65,9 +80,27 @@ def _call(fn, *args, **kwargs):
 # ----------------------------------------------------------------------------- live data
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True, "matchday": HUB.matchday, "running": HUB.running, "speed": HUB.speed,
+    return {"ok": True, "matchday": HUB.matchday, "running": HUB.running, "looping": HUB.looping, "speed": HUB.speed,
             "matches": len(HUB.matches), "moments": len(HUB.moment_log), "viewers": len(SESSIONS),
-            "agents": AGENTS.stats()}
+            "agents": AGENTS.stats(),
+            "cloud": {"telemetry": TELEMETRY, "cosmos": COSMOS is not None,
+                      "eventhub": EVENTHUB.stats() if EVENTHUB is not None else None}}
+
+
+@app.get("/api/recaps")
+def recaps() -> list[dict]:
+    return list(AGENTS.recaps.values())
+
+
+@app.get("/api/recaps/{match_id}")
+def recap(match_id: str) -> dict:
+    if match_id in AGENTS.recaps:
+        return AGENTS.recaps[match_id]
+    if COSMOS is not None:
+        item = COSMOS.read("recaps", f"recap-{match_id}", match_id)
+        if item:
+            return {k: v for k, v in item.items() if not k.startswith("_")}
+    raise HTTPException(404, "no recap for this match yet")
 
 
 @app.get("/api/league")
@@ -202,7 +235,9 @@ def patch_fan(fan_id: str, body: FanPatch) -> dict:
 @app.post("/api/fans/{fan_id}/feedback")
 def feedback(fan_id: str, body: Feedback) -> dict:
     fan = _call(FANS.get, fan_id)
-    return {**taste.record(fan, body.signal, body.kind, body.moment_id), "taste": taste.explain(fan)}
+    result = taste.record(fan, body.signal, body.kind, body.moment_id)
+    FANS.save(fan)
+    return {**result, "taste": taste.explain(fan)}
 
 
 @app.post("/api/fans/{fan_id}/rundown")
@@ -240,9 +275,14 @@ async def ask(body: Question) -> dict:
 @app.post("/api/admin/restart")
 async def restart(matchday: int = 9, speed: float = 4.0) -> dict:
     HUB.stop()
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(0.3)
     HUB.load_matchday(matchday)
-    HUB.start(speed=speed)
+    await HUB.publish({"kind": "matchday", "data": {"matchday": HUB.matchday, "speed": speed,
+                                                     "matches": tools.list_live_matches()}})
+    if os.getenv("AUTOLOOP", "0") == "1":
+        HUB.start_loop(speed=speed, gap_s=float(os.getenv("MATCHDAY_GAP_S", "45")))
+    else:
+        HUB.start(speed=speed)
     return health()
 
 

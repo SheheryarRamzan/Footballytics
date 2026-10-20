@@ -22,6 +22,24 @@ function Card({ e }: { e: FeedEntry }) {
   const mode = fan?.mode ?? "fan";
   const d = e.decision;
 
+  if (e.recap) {
+    const r = e.recap;
+    return (
+      <li className="feed-card recap">
+        <div className="fc-head">
+          <span className="fc-icon" aria-hidden>🏁</span>
+          <b>Full-time recap</b>
+          <span className="fc-min">{r.home} {Object.values(r.score)[0]}–{Object.values(r.score)[1]} {r.away}</span>
+          {r.status === "verified" && <span className="badge verified">✓ {t("verified")}</span>}
+        </div>
+        <div className="fc-headline">{r.headline}</div>
+        <p className="fc-body">{r.summary}</p>
+        <p className="fc-why-text"><b>Turning point:</b> {r.turning_point}</p>
+        {mode === "analyst" && <p className="fc-why-text"><b>Tactics:</b> {r.tactical_story}</p>}
+        <p className="muted small">⭐ {r.player_of_the_match_name}: {r.player_of_the_match_reason}</p>
+      </li>
+    );
+  }
   if (d?.action === "points") {
     const pts = d.data?.points ?? 0;
     return (

@@ -1,20 +1,31 @@
 [project]
 name = "footballytics"
-version = "0.1.0"
+version = "0.3.0"
 description = "Agentic, cloud-native personal match broadcasts from synthetic football events."
-readme = "../README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
-    "numpy>=2.1",
-    "pydantic>=2.9",
+    "numpy>=2.1,<3",
+    "pydantic>=2.9,<3",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "orjson>=3.10",
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+    "mcp>=1.30,<2",
+    "azure-identity>=1.26,<2",
+    "agent-framework-core>=1.22,<2",
+    "agent-framework-foundry>=1.15,<2",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "ruff>=0.7"]
+cloud = [
+    "azure-cosmos>=4.9,<5",
+    "azure-eventhub>=5.13,<6",
+    "azure-eventhub-checkpointstoreblob-aio>=1.2",
+    "azure-monitor-opentelemetry>=1.6,<2",
+]
+dev = ["pytest>=8.3", "ruff>=0.7", "websockets>=13"]
 
 [build-system]
 requires = ["setuptools>=75"]
@@ -23,9 +34,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["footballytics*"]
 
+[tool.setuptools.package-data]
+footballytics = ["seed/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py311"

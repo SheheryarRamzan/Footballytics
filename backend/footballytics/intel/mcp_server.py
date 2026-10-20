@@ -20,8 +20,24 @@ INSTRUCTIONS = (
 )
 
 
+def transport_security():
+    """DNS-rebinding protection stays on; public hostnames are allow-listed via MCP_ALLOWED_HOSTS
+    (comma-separated, e.g. the Container Apps FQDN). Local development hosts are always allowed."""
+    import os
+
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    hosts = ["localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"]
+    hosts += [h.strip() for h in os.getenv("MCP_ALLOWED_HOSTS", "").split(",") if h.strip()]
+    origins = ["http://localhost:*", "http://127.0.0.1:*"] + [f"https://{h}" for h in hosts if "localhost" not in h
+                                                               and "127.0.0.1" not in h]
+    return TransportSecuritySettings(enable_dns_rebinding_protection=True, allowed_hosts=hosts,
+                                     allowed_origins=origins)
+
+
 def build(stateless: bool = True) -> FastMCP:
-    server = FastMCP("footballytics", instructions=INSTRUCTIONS, stateless_http=stateless, json_response=True)
+    server = FastMCP("footballytics", instructions=INSTRUCTIONS, stateless_http=stateless, json_response=True,
+                     transport_security=transport_security())
     for fn in tools.TOOLS:
         server.add_tool(fn, name=fn.__name__, description=(fn.__doc__ or "").strip())
     return server
