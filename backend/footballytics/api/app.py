@@ -379,7 +379,7 @@ async def stream(ws: WebSocket) -> None:
         pass
     finally:
         task.cancel()
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(asyncio.CancelledError, Exception):  # CancelledError is a BaseException
             await task
         session.close()
         SESSIONS.discard(session)

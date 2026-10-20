@@ -34,3 +34,6 @@ Thumbs.db
 *.tsbuildinfo
 backend/evals/results/*.json*
 !backend/evals/results/latest.json
+
+# internal submission planning (video brief, drafts)
+submission/
