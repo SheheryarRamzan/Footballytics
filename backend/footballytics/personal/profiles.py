@@ -59,13 +59,17 @@ class FanProfile:
 def auto_squad(league: League, favorite_club: str | None = None, seed: int | None = None) -> tuple[list[str], str, str]:
     """A valid 15-player fantasy squad (2 GK, 5 DEF, 5 MID, 3 FWD, budget 100, max 3 per club).
 
-    Greedy by value with randomness; leans towards the favourite club. Returns (squad, captain, vice).
+    Greedy by value with randomness; leans towards the favourite club and only picks players who start
+    for their clubs (a squad of benchwarmers would have nothing to watch). Returns (squad, captain, vice).
     """
+    from ..league import pick_lineup
+
     rng = random.Random(seed)
-    for _ in range(200):
+    starters = [p for club in league.clubs.values() for p in pick_lineup(club)[0]]
+    for attempt in range(300):
         squad, spent, per_club = [], 0.0, {}
         remaining = dict(SQUAD_SHAPE)
-        pool = list(league.players.values())
+        pool = list(starters if attempt < 250 else league.players.values())
         rng.shuffle(pool)
         # value = rating per price, with a bonus for the favourite club and some noise
         pool.sort(key=lambda p: -((p.rating / p.price) * (1.25 if p.club_id == favorite_club else 1.0)
@@ -76,7 +80,7 @@ def auto_squad(league: League, favorite_club: str | None = None, seed: int | Non
             if remaining.get(p.group, 0) <= 0 or p.id in squad or per_club.get(p.club_id, 0) >= MAX_PER_CLUB:
                 continue
             slots_left = sum(remaining.values()) - 1
-            if spent + p.price + 4.0 * slots_left > BUDGET:
+            if spent + p.price + 4.5 * slots_left > BUDGET:
                 continue
             squad.append(p.id)
             spent += p.price

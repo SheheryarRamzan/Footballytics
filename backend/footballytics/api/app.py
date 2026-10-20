@@ -168,6 +168,32 @@ def broadcast(match_id: str | None = None, limit: int = Query(30, le=300)) -> li
     return items[:limit]
 
 
+@app.get("/api/tts")
+async def tts(moment_id: str, lang: str = "en", kind: str = "audio"):
+    """Voice a broadcast item's rendition (audio description by default) with gpt-4o-mini-tts.
+    Only newsroom-generated text can be voiced; the result is cached."""
+    from fastapi.responses import Response
+
+    from ..agents.voice import speak
+
+    if not AGENTS.enabled:
+        raise HTTPException(503, "agents are not configured")
+    item = next((i for i in reversed(AGENTS.broadcast_log) if i["moment_id"] == moment_id), None)
+    if item is None:
+        raise HTTPException(404, "unknown broadcast item")
+    rend = item["renditions"].get(lang) or item["renditions"].get("en")
+    if not rend or kind not in ("audio", "fan", "kids", "analyst"):
+        raise HTTPException(404, "no rendition for this language")
+    used_lang = lang if lang in item["renditions"] else "en"
+    try:
+        audio = await speak((moment_id, used_lang, kind), rend[kind], used_lang)
+    except Exception as exc:
+        log.exception("tts failed")
+        raise HTTPException(502, f"voice unavailable: {type(exc).__name__}") from exc
+    return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=3600",
+                                                                       "X-Voice-Language": used_lang})
+
+
 @app.get("/api/fantasy")
 def fantasy(player_ids: str | None = None) -> list[dict]:
     ids = player_ids.split(",") if player_ids else None

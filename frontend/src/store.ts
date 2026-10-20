@@ -251,7 +251,7 @@ function handle(msg: any) {
           liveFrames.prev = liveFrames.cur = null;
           liveFrames.match = d.match_id;
         }
-        if (d.action === "cut") useStore.getState().showToast(`Cutting to ${matchLabel(d.match_id)}: ${d.line}`);
+        if (d.action === "cut") useStore.getState().showToast(`Cutting to ${matchTeams(d.match_id)}: ${d.line}`);
       }
       if (d.action === "pip") {
         useStore.setState({ pip: d });
@@ -282,6 +282,12 @@ function handle(msg: any) {
       useStore.getState().showToast(msg.data.message);
       break;
   }
+}
+
+/** "FNV v THW" (no score: a cut is often triggered by the goal that changes it). */
+export function matchTeams(id: string): string {
+  const m = useStore.getState().matches[id];
+  return m ? `${m.home} v ${m.away}` : id;
 }
 
 export function matchLabel(id: string): string {

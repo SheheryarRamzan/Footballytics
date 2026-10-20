@@ -100,6 +100,8 @@ module apps 'modules/apps.bicep' = if (deployApps) {
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     env: [
       { name: 'FOUNDRY_PROJECT_ENDPOINT', value: foundry.outputs.projectEndpoint }
+      { name: 'AZURE_OPENAI_ENDPOINT', value: foundry.outputs.openAiEndpoint }
+      { name: 'MODEL_TTS', value: 'gpt-4o-mini-tts' }
       { name: 'MODEL_REASONING', value: 'gpt-5-mini' }
       { name: 'MODEL_FAST', value: 'gpt-4.1-mini' }
       { name: 'ANALYST_MODEL', value: 'reasoning' }
