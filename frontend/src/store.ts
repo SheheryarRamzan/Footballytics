@@ -68,6 +68,7 @@ interface State {
   view: View;
   pitch: "3d" | "2d";
   camera: "broadcast" | "player" | "tactical";
+  following: string | null; // the player Player Cam is following now (set by the 3D view)
   moments: Moment[];
   items: Record<string, BroadcastItem>;
   feed: FeedEntry[];
@@ -100,6 +101,7 @@ export const useStore = create<State>((set) => ({
   view: "matchday",
   pitch: "3d",
   camera: "broadcast",
+  following: null,
   moments: [],
   items: {},
   feed: [],

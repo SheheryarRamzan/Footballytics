@@ -16,7 +16,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -68,6 +68,20 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 app.mount("/mcp-server", MCP.streamable_http_app())  # MCP endpoint: /mcp-server/mcp
 
 
+def controls_locked() -> bool:
+    """PUBLIC_DEMO=1 (set on the public deployment): the shared matchday controls are read-only.
+
+    There is one live matchday for every viewer, so restarting it or changing its speed would affect everyone watching.
+    """
+    return os.getenv("PUBLIC_DEMO", "0") == "1"
+
+
+def require_controls() -> None:
+    if controls_locked():
+        raise HTTPException(403, "Locked on the public demo: these controls change the live matchday for everyone "
+                                 "watching. Run Footballytics locally to use them.")
+
+
 def _call(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
@@ -81,7 +95,7 @@ def _call(fn, *args, **kwargs):
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "matchday": HUB.matchday, "running": HUB.running, "looping": HUB.looping, "speed": HUB.speed,
-            "matches": len(HUB.matches), "moments": len(HUB.moment_log), "viewers": len(SESSIONS),
+            "controls_locked": controls_locked(), "matches": len(HUB.matches), "moments": len(HUB.moment_log), "viewers": len(SESSIONS),
             "agents": AGENTS.stats(),
             "cloud": {"telemetry": TELEMETRY, "cosmos": COSMOS is not None,
                       "eventhub": EVENTHUB.stats() if EVENTHUB is not None else None}}
@@ -325,7 +339,7 @@ async def ask(body: Question) -> dict:
 
 
 # ----------------------------------------------------------------------------- admin
-@app.post("/api/admin/restart")
+@app.post("/api/admin/restart", dependencies=[Depends(require_controls)])
 async def restart(matchday: int = 9, speed: float = 4.0) -> dict:
     HUB.stop()
     await asyncio.sleep(0.3)
@@ -339,7 +353,7 @@ async def restart(matchday: int = 9, speed: float = 4.0) -> dict:
     return health()
 
 
-@app.post("/api/admin/speed")
+@app.post("/api/admin/speed", dependencies=[Depends(require_controls)])
 def set_speed(speed: float = Query(..., gt=0, le=60)) -> dict:
     HUB.speed = speed
     return health()

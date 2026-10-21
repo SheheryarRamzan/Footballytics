@@ -6,6 +6,9 @@ import { animateRig, buildPlayer, type Rig } from "./figures";
 import { contrastText, sample } from "./shared";
 import { SCALE_UP, buildStadium, makeRenderer, placeBall, toWorld, tvCamera } from "./stadium";
 
+/** Per-frame easing tuned at 60 fps, made frame-rate independent (slow GPUs still catch up in about a second). */
+const ease = (at60: number, dt: number) => 1 - Math.pow(1 - at60, dt * 60);
+
 interface Figure {
   rig: Rig;
   group: THREE.Group;
@@ -78,6 +81,28 @@ export function Pitch3D() {
       return f;
     }
 
+    // Player Cam target: your chosen player or captain if they are in this match, else one of your squad who is,
+    // else the player on the ball (kept for a few seconds so the camera does not jump with every touch)
+    let followId: string | null = null;
+    let followSince = 0;
+    const pickFollow = (s: NonNullable<ReturnType<typeof sample>>, now: number): string | null => {
+      const st = useStore.getState();
+      const preferred = st.fan?.focus_player ?? st.fan?.captain ?? null;
+      if (preferred && s.players.has(preferred)) return preferred;
+      const squad = st.fan?.squad ?? [];
+      const mine = squad.find((id) => s.players.has(id));
+      if (mine) return mine;
+      if (followId && s.players.has(followId) && now - followSince < 4000) return followId;
+      if (s.owner && s.players.has(s.owner)) return s.owner;
+      let best: string | null = null;
+      let dmin = Infinity;
+      for (const [id, p] of s.players) {
+        const d = Math.hypot(p.x - s.ball[0], p.y - s.ball[1]);
+        if (d < dmin) [best, dmin] = [id, d];
+      }
+      return best;
+    };
+
     const target = new THREE.Vector3();
     const camPos = new THREE.Vector3(0, 30, 80);
     let raf = 0;
@@ -109,6 +134,7 @@ export function Pitch3D() {
         }
         figures.clear();
         stageSeen = st.stage;
+        followId = null;
       }
       const s = sample(now);
       if (s) {
@@ -138,7 +164,7 @@ export function Pitch3D() {
           f.ring.visible = inSquad;
           (f.ring.material as THREE.MeshBasicMaterial).color.set(id === st.fan?.captain ? "#fde047" : "#f59e0b");
           const pl = st.players[id];
-          const show = inSquad || id === s.owner || anchors.has(id) || id === st.fan?.focus_player;
+          const show = inSquad || id === s.owner || anchors.has(id) || id === st.fan?.focus_player || id === followId;
           f.label.visible = show;
           if (show) {
             const extra = anchors.get(id);
@@ -158,11 +184,17 @@ export function Pitch3D() {
         // Camera direction
         let focus = new THREE.Vector3(bw.x, 0, bw.z);
         const camMode = st.camera;
-        const followId = st.fan?.focus_player ?? st.fan?.captain;
-        const follow = camMode === "player" && followId ? s.players.get(followId) : undefined;
+        if (camMode === "player") {
+          const pick = pickFollow(s, now);
+          if (pick !== followId) [followId, followSince] = [pick, now];
+        } else {
+          followId = null;
+        }
+        if (st.following !== followId) useStore.setState({ following: followId });
+        const follow = followId ? s.players.get(followId) : undefined;
         if (camMode === "tactical") {
-          target.lerp(new THREE.Vector3(0, 0, 0), 0.05);
-          camPos.lerp(new THREE.Vector3(0, 92, 22), 0.05);
+          target.lerp(new THREE.Vector3(0, 0, 0), ease(0.05, dt));
+          camPos.lerp(new THREE.Vector3(0, 92, 22), ease(0.05, dt));
         } else if (follow) {
           const fp = toWorld(follow.x, follow.y);
           const m = st.matches[st.stage ?? ""];
@@ -171,10 +203,10 @@ export function Pitch3D() {
           const attackRight = (m?.period ?? 1) === 1 ? homeSide : !homeSide;
           const dir = attackRight ? 1 : -1;
           focus = fp.clone().add(new THREE.Vector3(dir * 10, 0, 0));
-          target.lerp(focus, 0.08);
-          camPos.lerp(fp.clone().add(new THREE.Vector3(-dir * 15, 7.5, 7)), 0.06);
+          target.lerp(focus, ease(0.08, dt));
+          camPos.lerp(fp.clone().add(new THREE.Vector3(-dir * 15, 7.5, 7)), ease(0.06, dt));
         } else {
-          tvCamera(target, camPos, focus);
+          tvCamera(target, camPos, focus, dt * 60);
         }
         camera.position.copy(camPos);
         camera.lookAt(target);

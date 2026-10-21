@@ -8,6 +8,13 @@
       "port": 8000
     },
     {
+      "name": "api-public",
+      "runtimeExecutable": "backend/.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "footballytics.api.app:app", "--app-dir", "backend", "--port", "8001"],
+      "env": { "PUBLIC_DEMO": "1" },
+      "port": 8001
+    },
+    {
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend", "run", "dev"],

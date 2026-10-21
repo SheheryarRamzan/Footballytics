@@ -80,6 +80,7 @@ export function Studio() {
   const list = Object.values(items).sort((a, b) => b.item_id.localeCompare(a.item_id)).slice(0, 40);
   const sel = selected ? items[selected] : list[0];
   const agents = health?.agents;
+  const locked = !!health?.controls_locked;
   return (
     <div className="studio">
       <section className="panel studio-stats">
@@ -95,9 +96,16 @@ export function Studio() {
         <div className="controls">
           <span className="muted">Sim speed ×{health?.speed}</span>
           {[2, 4, 8].map((s) => (
-            <button key={s} className="btn small ghost" onClick={() => api.speed(s)}>×{s}</button>
+            <button key={s} className="btn small ghost" disabled={locked} onClick={() => api.speed(s)}>×{s}</button>
           ))}
-          <button className="btn small ghost" onClick={() => api.restart(health?.matchday ?? 9, health?.speed ?? 4)}>Restart matchday</button>
+          <button className="btn small ghost" disabled={locked} onClick={() => api.restart(health?.matchday ?? 9, health?.speed ?? 4)}>
+            Restart matchday
+          </button>
+          {locked && (
+            <span className="muted small locked-note">
+              🔒 Locked on the public demo: these change the live matchday for everyone watching.
+            </span>
+          )}
           <code className="mcp" title="Connect GitHub Copilot, Claude or any MCP client">MCP: {location.origin}/mcp-server/mcp</code>
         </div>
       </section>

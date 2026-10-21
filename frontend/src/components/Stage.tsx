@@ -2,7 +2,7 @@ import { api } from "../api";
 import { usePoll } from "../hooks";
 import { Pitch2D } from "../pitch/Pitch2D";
 import { Pitch3D } from "../pitch/Pitch3D";
-import { useStore } from "../store";
+import { matchLabel, useStore } from "../store";
 import type { MatchState } from "../types";
 import { Overlays } from "./Overlays";
 
@@ -31,9 +31,36 @@ export function Stage({ analystControls = false }: { analystControls?: boolean }
             <button className={camera === "tactical" ? "on" : ""} onClick={() => setCamera("tactical")}>Overhead</button>
           </div>
         )}
+        {pitch === "3d" && camera === "player" && <FollowChip />}
         {pitch === "2d" && showControl && <span className="hint">Shaded: who controls each space (pitch control)</span>}
       </div>
     </section>
+  );
+}
+
+/** Who Player Cam is following; if your own player is in another match, one tap takes you there. */
+function FollowChip() {
+  const following = useStore((s) => s.following);
+  const players = useStore((s) => s.players);
+  const fan = useStore((s) => s.fan);
+  const stage = useStore((s) => s.stage);
+  const matches = useStore((s) => s.matches);
+  const setStage = useStore((s) => s.setStage);
+  const preferred = fan?.focus_player ?? fan?.captain ?? null;
+  const club = preferred ? players[preferred]?.club_id : undefined;
+  const elsewhere = club && preferred !== following
+    ? Object.values(matches).find((m) => (m.home === club || m.away === club) && m.match_id !== stage)
+    : undefined;
+  const who = following ? players[following] : undefined;
+  return (
+    <span className="follow-chip" role="status">
+      {who ? <>🎥 Following <b>{who.name}</b></> : "🎥 Finding a player…"}
+      {elsewhere && preferred && (
+        <button className="btn small ghost" onClick={() => setStage(elsewhere.match_id)}>
+          Follow {players[preferred]?.short_name ?? "your player"} in {matchLabel(elsewhere.match_id)} →
+        </button>
+      )}
+    </span>
   );
 }
 

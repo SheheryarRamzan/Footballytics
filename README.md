@@ -8,6 +8,8 @@ Built for the **Microsoft × Premier League "Inside the Game" Developer Hackatho
 > **MCP endpoint:** `https://ca-fbx-api-5dn4hvp4.jollysmoke-ceff9f6d.eastus2.azurecontainerapps.io/mcp-server/mcp`
 >
 > Matchdays play on a loop at 4× speed, so a match is always live. Pick a club, and the app builds you a fantasy squad and starts your personal broadcast.
+>
+> **New here?** The [user guide](docs/USER_GUIDE.md) has a 2-minute tour and explains every screen and button.
 
 ![Your Matchday: the Personal Director cuts to a penalty in another match because it involves the fan's squad; every card is verified and explains why it was shown](docs/images/matchday.png)
 
