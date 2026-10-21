@@ -6,9 +6,13 @@
    matchday. The simulation is paused at each moment, so agents see the live state exactly as in
    production. Measures verification rate, first-pass and final claim accuracy, numbers in the
    multilingual renditions that cannot be traced to evidence, language coverage, labels and latency.
-2. Planted errors (adversarial): immediately after each item is produced, one claim is corrupted
-   and a fabricated statistic is planted in the prose. Measures how often the Verifier catches each,
-   and how often it raises a false alarm on the untouched item.
+2. Planted errors (adversarial): immediately after each item is produced (the live state unchanged), errors are
+   planted and the Verifier's checks run on each: a claim inflated by 50%, a claim just outside its tolerance, the
+   right number credited to the wrong player or team, the fixed fabricated sentence, a randomly drawn fabricated
+   sentence (varied stats, units and phrasing), and a fabricated number in a translated rendition (in that
+   language's digits). Controls measure false alarms: the untouched item, and a claim moved but kept inside its
+   tolerance. Every rate is reported with its 95% confidence interval (Wilson), and the known blind spot (small
+   whole numbers, exempt by design) is measured separately.
 3. AI judges (Azure AI Evaluation SDK): groundedness, relevance, coherence and fluency of the
    explanations, plus content safety, logged to the Foundry project as an evaluation run.
 4. Gates: thresholds that fail the run (non-zero exit) when quality regresses.
@@ -18,8 +22,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
+import math
 import os
+import random
 import statistics
 import sys
 import time
@@ -28,7 +35,7 @@ from pathlib import Path
 
 from ..agents.audit import unsupported_numbers
 from ..agents.clients import is_configured
-from ..agents.newsroom import NewsTask, Newsroom, review
+from ..agents.newsroom import NewsTask, Newsroom, host_evidence, rendition_problems, review, scrub_rendition
 from ..agents.schemas import Claim, Insight
 from ..hub import LiveHub
 from ..intel import tools
@@ -40,13 +47,41 @@ QUOTAS = {"goal": 4, "wonder_strike": 1, "big_chance": 3, "great_save": 3, "mome
           "milestone": 2, "tempo_shift": 1}
 LANGS = ["en", "es", "ar"]
 FABRICATION = " It was his 47th successful dribble of the season, at an 83.6% success rate."
+# Drawn at random per item, so the auditor cannot be tuned to one sentence. Every number is above 11 (see below).
+FABRICATIONS = [
+    " It was his {a}th successful dribble of the season, at a {p}% success rate.",
+    " He has now made {a} progressive carries since August.",
+    " Their press has won the ball back {a} times in the final third this month.",
+    " That strike left his boot at {s} km/h, the fastest of his career.",
+    " He has covered {d} km in his last {b} matches.",
+    " The keeper has saved {p}% of the shots on target he has faced this season.",
+    " They have scored {a} goals from set pieces in {b} games.",
+    " It was his {a}th touch inside the opposition box this season.",
+    " The pass travelled {m} metres, the longest by any midfielder this season.",
+    " His expected-goals tally for the season now stands at {x}.",
+    " The side has won {p}% of its aerial duels since the break.",
+    " He has completed {a} line-breaking passes in his last {b} appearances.",
+]
+# Whole numbers 0-11 are exempt from the number audit ("two defenders", "the 2nd goal"): this measures that gap.
+SMALL_FABRICATION = " It was his 9th goal in his last 10 matches."
+RENDITION_PLANTS = {
+    "en": " It was his {n}th successful dribble of the season.",
+    "es": " Fue su regate exitoso número {n} de la temporada.",
+    "ar": " وكانت هذه مراوغته الناجحة رقم {n} هذا الموسم.",
+}
+ARABIC_DIGITS = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
 GATES = {
     "verified_rate": (">=", 0.90),
     "final_claim_accuracy": (">=", 0.98),
     "planted_claim_catch_rate": (">=", 0.95),
     "planted_fabrication_catch_rate": (">=", 0.90),
     "control_false_alarm_rate": ("<=", 0.10),
-    "renditions_with_untraceable_numbers": ("<=", 0.15),
+    "near_miss_catch_rate": (">=", 0.95),
+    "wrong_subject_catch_rate": (">=", 0.95),
+    "varied_fabrication_catch_rate": (">=", 0.90),
+    "rendition_number_catch_rate": (">=", 0.95),
+    "tolerance_false_alarm_rate": ("<=", 0.10),
+    "renditions_with_untraceable_numbers": ("<=", 0.02),
     "language_coverage": (">=", 0.95),
     "latency_p95_s": ("<=", 30.0),
     "groundedness": (">=", 3.5),
@@ -56,28 +91,99 @@ GATES = {
 
 
 # ----------------------------------------------------------------------------- planted errors
+def _rng(item: dict) -> random.Random:
+    return random.Random(int(hashlib.sha1(item["moment_id"].encode()).hexdigest()[:8], 16))
+
+
+def random_fabrication(rng: random.Random) -> str:
+    return rng.choice(FABRICATIONS).format(
+        a=rng.randint(23, 96), b=rng.randint(12, 30), p=f"{rng.uniform(51, 94.9):.1f}", s=f"{rng.uniform(87, 131.9):.1f}",
+        d=f"{rng.uniform(41.2, 79.9):.1f}", m=rng.randint(38, 64), x=f"{rng.uniform(4.37, 9.81):.2f}")
+
+
+def _set_claim(ins: Insight, i: int, **changes) -> Insight:
+    out = ins.model_copy(deep=True)
+    for k, v in changes.items():
+        setattr(out.claims[i], k, v)
+    return out
+
+
 def plant_errors(item: dict) -> dict | None:
-    """Corrupt a verified item two ways and run the Verifier's checks on each (state is still live)."""
+    """Plant errors in a verified item and run the Verifier's checks on each (the live state is unchanged)."""
     if item["status"] not in ("verified", "corrected"):
         return None
+    rng = _rng(item)
     good = [c for c in item["claims"] if c.get("ok")]
     task = NewsTask(item["moment"], item["context"], ["en"])
     ins = item["insight"]
     base = Insight(headline=ins["headline"], why_it_matters=ins["why_it_matters"], tactical_angle=ins.get("tactical_angle"),
                    claims=[Claim(subject_id=c["subject_id"], metric=c["metric"], value=float(c["value"])) for c in good])
-    _, control = review(task, base)
-    out = {"control_false_alarm": bool(control), "claim_caught": None}
-    if base.claims:
-        wrong = base.model_copy(deep=True)
-        v = wrong.claims[0].value
-        wrong.claims[0].value = round(v * 1.5 + (3 if abs(v) < 2 else 0), 3)  # well outside any tolerance
-        _, problems = review(task, wrong)
-        out["claim_caught"] = bool(problems)
+    checks, control = review(task, base)
+    out = {"control_false_alarm": bool(control), "claim_caught": None, "near_miss_caught": None,
+           "within_tolerance_false_alarm": None, "wrong_subject_caught": None}
+    caught = lambda planted: bool(review(task, planted)[1])  # noqa: E731
+
+    if base.claims:  # a claim inflated by 50%: far outside any tolerance
+        v = base.claims[0].value
+        out["claim_caught"] = caught(_set_claim(base, 0, value=round(v * 1.5 + (3 if abs(v) < 2 else 0), 3)))
+
+    # just outside / just inside the tolerance the Verifier uses for that claim
+    numeric = [(i, c) for i, c in enumerate(checks) if c.get("ok") and isinstance(c.get("actual"), int | float)
+               and c.get("tolerance") is not None and i < len(base.claims)]
+    if numeric:
+        i, c = numeric[0]
+        actual, tol = float(c["actual"]), float(c["tolerance"])
+        outside = actual + 1 if actual.is_integer() and tol <= 0.5 else actual + 1.3 * tol + 1e-3
+        out["near_miss_caught"] = caught(_set_claim(base, i, value=round(outside, 3)))
+        out["within_tolerance_false_alarm"] = caught(_set_claim(base, i, value=round(actual + 0.5 * tol, 4)))
+
+    # the right number credited to the wrong player or team
+    owned = [(i, c) for i, c in enumerate(base.claims) if c.subject_id not in ("moment", task.moment["moment_id"])]
+    if owned:
+        i, c = owned[0]
+        match_id = task.moment["match_id"]
+        snap = tools.hub().match(match_id).proc.snapshot()
+        teams, players = list(snap.get("teams", {})), list(snap.get("players", {}))
+        pool = [t for t in teams if t != c.subject_id] if c.subject_id in teams else \
+            [p for p in players if p != c.subject_id]
+        rng.shuffle(pool)
+        for cand in pool:
+            r = tools.verify_claims(match_id, [{"subject_id": cand, "metric": c.metric, "value": c.value}])[0]
+            if r.get("actual") is not None and not r["ok"]:
+                out["wrong_subject_caught"] = caught(_set_claim(base, i, subject_id=cand))
+                break
+
     fab = base.model_copy(deep=True)
     fab.why_it_matters += FABRICATION
-    _, problems = review(task, fab)
-    out["fabrication_caught"] = bool(problems)
+    out["fabrication_caught"] = caught(fab)
+    sentence = random_fabrication(rng)
+    fab = base.model_copy(deep=True)
+    fab.why_it_matters += sentence
+    out["varied_fabrication_caught"], out["varied_fabrication"] = caught(fab), sentence.strip()
+    small = base.model_copy(deep=True)
+    small.why_it_matters += SMALL_FABRICATION
+    out["small_number_fabrication_caught"] = caught(small)
+    out.update(plant_in_renditions(item, rng))
     return out
+
+
+def plant_in_renditions(item: dict, rng: random.Random | None = None) -> dict:
+    """A fabricated number in each translated rendition (in that language's digits): caught, and removed?"""
+    rng = rng or _rng(item)
+    evidence = host_evidence(item["insight"], item["moment"])
+    results = []
+    for lang, r in item.get("renditions", {}).items():
+        plant = RENDITION_PLANTS.get(lang)
+        if not plant:
+            continue
+        n = str(rng.randint(23, 96))
+        sentence = plant.format(n=n.translate(ARABIC_DIGITS) if lang == "ar" else n)
+        planted = dict(r, fan=(r.get("fan") or "") + sentence)
+        bad = rendition_problems({lang: planted}, evidence, item["minute"]).get(lang, [])
+        cleaned = scrub_rendition(planted, bad) if bad else planted
+        removed = sentence.strip() not in (cleaned.get("fan") or "")  # gone from what would air, not just unseen
+        results.append({"language": lang, "caught": bool(bad), "removed": removed})
+    return {"rendition_tests": results}
 
 
 def fabrication_caught_offline(item: dict) -> bool:
@@ -127,7 +233,7 @@ def deterministic(items: list[dict]) -> tuple[dict, list[dict]]:
         claims = it["claims"]
         first = next((t for t in it["trace"] if t["agent"] == "verifier" and t.get("attempt") == 1), None)
         rend = it["renditions"]
-        evidence = [it["context"], it["insight"], [c.get("actual") for c in claims if c.get("ok")]]
+        evidence = host_evidence(it["insight"], it["moment"])  # what the Host was given
         untraceable = unsupported_numbers([" ".join((r["fan"], r["analyst"], r["kids"], r["audio"])) for r in rend.values()],
                                           evidence, always_ok=[it["minute"]])
         rows.append({
@@ -161,8 +267,66 @@ def deterministic(items: list[dict]) -> tuple[dict, list[dict]]:
         "planted_fabrication_catch_rate": (sum(p["fabrication_caught"] for p in planted) / len(planted)) if planted else None,
         "control_false_alarm_rate": (sum(p["control_false_alarm"] for p in planted) / len(planted)) if planted else None,
         "planted_tests": len(planted),
+        "claims_checked": total_claims,
+        "claims_ok": sum(r["claims_ok"] for r in verified),
     }
+    summary.update(planted_summary(planted))
     return summary, rows
+
+
+def wilson(k: int, n: int, z: float = 1.96) -> list[float] | None:
+    """95% confidence interval for k successes in n trials (Wilson score; honest at 0% and 100%)."""
+    if not n:
+        return None
+    p = k / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return [round(max(0.0, c - h), 3), round(min(1.0, c + h), 3)]
+
+
+PLANTED_TESTS = {  # key in each item's "planted" record -> (summary name, what was planted)
+    "claim_caught": ("planted_claim", "a claim inflated by 50%"),
+    "near_miss_caught": ("near_miss", "a claim just outside the Verifier's tolerance"),
+    "wrong_subject_caught": ("wrong_subject", "the right number credited to the wrong player or team"),
+    "fabrication_caught": ("fixed_fabrication", "the fixed fabricated sentence"),
+    "varied_fabrication_caught": ("varied_fabrication", "a randomly drawn fabricated sentence"),
+}
+
+
+def planted_summary(planted: list[dict]) -> dict:
+    tests = {}
+    for key, (name, what) in PLANTED_TESTS.items():
+        vals = [p[key] for p in planted if p.get(key) is not None]
+        tests[name] = {"what": what, "caught": sum(vals), "n": len(vals)}
+    rend = [t for p in planted for t in p.get("rendition_tests", [])]
+    tests["rendition_number"] = {"what": "a fabricated number in a translated rendition (en, es, Arabic digits)",
+                                 "caught": sum(t["caught"] for t in rend), "n": len(rend),
+                                 "removed": sum(t["removed"] for t in rend)}
+    for t in tests.values():
+        t["rate"] = t["caught"] / t["n"] if t["n"] else None
+        t["ci95"] = wilson(t["caught"], t["n"])
+    alarms = {}
+    for key, name, what in (("control_false_alarm", "untouched_item", "the untouched verified item"),
+                            ("within_tolerance_false_alarm", "within_tolerance", "a claim moved but kept within tolerance")):
+        vals = [p[key] for p in planted if p.get(key) is not None]
+        k, n = sum(vals), len(vals)
+        alarms[name] = {"what": what, "flagged": k, "n": n, "rate": k / n if n else None, "ci95": wilson(k, n)}
+    small = [p["small_number_fabrication_caught"] for p in planted if p.get("small_number_fabrication_caught") is not None]
+    blind = {"small_number_fabrication": {"what": "a fabricated sentence using only numbers 0-11 (exempt by design)",
+                                          "caught": sum(small), "n": len(small),
+                                          "rate": sum(small) / len(small) if small else None}}
+    total_k = sum(t["caught"] for t in tests.values())
+    total_n = sum(t["n"] for t in tests.values())
+    return {
+        "planted": tests, "false_alarms": alarms, "blind_spots": blind,
+        "planted_total_caught": total_k, "planted_total_tests": total_n, "planted_total_ci95": wilson(total_k, total_n),
+        "near_miss_catch_rate": tests["near_miss"]["rate"],
+        "wrong_subject_catch_rate": tests["wrong_subject"]["rate"],
+        "varied_fabrication_catch_rate": tests["varied_fabrication"]["rate"],
+        "rendition_number_catch_rate": tests["rendition_number"]["rate"],
+        "tolerance_false_alarm_rate": alarms["within_tolerance"]["rate"],
+    }
 
 
 def ai_judges(items: list[dict], out_dir: Path, name: str) -> dict:
@@ -239,7 +403,7 @@ def report_markdown(summary: dict, gates: list[dict], rows: list[dict], meta: di
     lines = [
         "# Newsroom evaluation",
         "",
-        f"Run `{meta['name']}` on {meta['date']}: {summary['items']} moments from simulated matchday {meta['matchday']}, "
+        f"Run `{meta['name']}` on {meta['date']}: {summary['items']} moments from simulated matchday(s) {meta['matchday']}, "
         f"rendered in {', '.join(LANGS)}. Analyst `{meta['analyst_model']}`, Host `{meta['host_model']}`, "
         f"judge `{meta['judge_model']}`.",
         "",
@@ -260,10 +424,8 @@ def report_markdown(summary: dict, gates: list[dict], rows: list[dict], meta: di
         "",
         f"- First-pass clean (no Verifier corrections needed): {pct(summary['first_pass_clean_rate'])}; "
         f"rewrites per item: {summary['rewrites_per_item']:.2f}",
-        f"- Planted-error tests: {summary['planted_tests']} items; corrupted claims caught "
-        f"{pct(summary['planted_claim_catch_rate'])}, fabricated statistics caught "
-        f"{pct(summary['planted_fabrication_catch_rate'])}, false alarms on untouched items "
-        f"{pct(summary['control_false_alarm_rate'])}",
+        f"- Claims checked against live data: {summary['claims_ok']} of {summary['claims_checked']} published claims "
+        f"matched (within the Verifier's tolerance: 5%, or 0.02 for small decimals / 0.5 for counts)",
         f"- Latency p50 {summary['latency_p50_s']:.1f}s, p95 {summary['latency_p95_s']:.1f}s (Analyst + Verifier + "
         f"{len(LANGS)}-language Host, end to end)",
         f"- AI judges (1-5): groundedness {num(summary.get('groundedness'))}, relevance {num(summary.get('relevance'))}, "
@@ -273,6 +435,28 @@ def report_markdown(summary: dict, gates: list[dict], rows: list[dict], meta: di
         lines.append(f"- Content safety defect rates: {summary['content_safety_defect_rates']}")
     if summary.get("foundry_url"):
         lines.append(f"- Foundry evaluation run: {summary['foundry_url']}")
+    ci = lambda c: "–" if not c else f"{c[0]:.0%}–{c[1]:.0%}"  # noqa: E731
+    if summary.get("planted"):
+        lines += ["", "## Planted-error tests", "",
+                  f"Every published item is attacked several ways at the moment it is produced. "
+                  f"Overall: {summary['planted_total_caught']} of {summary['planted_total_tests']} planted errors caught "
+                  f"(95% CI {ci(summary['planted_total_ci95'])}).", "",
+                  "| Test | What is planted | Caught | 95% CI |", "|---|---|---|---|"]
+        for name, t in summary["planted"].items():
+            extra = f"; removed before air {t['removed']}/{t['n']}" if "removed" in t else ""
+            lines.append(f"| {name.replace('_', ' ')} | {t['what']} | {t['caught']}/{t['n']}{extra} | {ci(t['ci95'])} |")
+        lines += ["", "| False-alarm control | What is checked | Flagged | 95% CI |", "|---|---|---|---|"]
+        for name, a in summary["false_alarms"].items():
+            lines.append(f"| {name.replace('_', ' ')} | {a['what']} | {a['flagged']}/{a['n']} | {ci(a['ci95'])} |")
+        b = summary["blind_spots"]["small_number_fabrication"]
+        lines += ["", "## Known blind spots", "",
+                  f"- **Small whole numbers.** The number audit lets 0-11 through, because prose uses them for counts and "
+                  f"ordinals (\"two defenders\", \"the 2nd goal\"). A fabricated sentence using only such numbers was caught "
+                  f"{b['caught']}/{b['n']} times.",
+                  "- **Attribution in prose.** Structured claims are checked per player and team, but a correct number "
+                  "credited to the wrong player in the prose itself is not.",
+                  "- **Statements without numbers** (\"his first goal for the club\") are only assessed by the AI judge.",
+                  f"- **The judge** is `{meta['judge_model']}`, the same model as the Host."]
     lines += ["", "## Items", "", "| Kind | Min | Status | Claims ok | Untraceable numbers | Latency | Headline |",
               "|---|---|---|---|---|---|---|"]
     for r in rows:
@@ -284,6 +468,7 @@ def report_markdown(summary: dict, gates: list[dict], rows: list[dict], meta: di
 async def main() -> int:
     ap = argparse.ArgumentParser(description="Evaluate the Footballytics agent newsroom")
     ap.add_argument("--matchday", type=int, default=11)
+    ap.add_argument("--matchdays", help="comma list, e.g. 11,12,13: --items is split across them")
     ap.add_argument("--items", type=int, default=24)
     ap.add_argument("--max-minutes", type=int, default=95)
     ap.add_argument("--no-judges", action="store_true", help="skip the Azure AI Evaluation judges")
@@ -294,7 +479,9 @@ async def main() -> int:
         print("FOUNDRY_PROJECT_ENDPOINT is not set; cannot run the newsroom.")
         return 2
     RESULTS.mkdir(parents=True, exist_ok=True)
-    name = f"newsroom-md{args.matchday}-{time.strftime('%Y%m%d-%H%M%S')}"
+    mds = [int(x) for x in args.matchdays.split(",")] if args.matchdays else [args.matchday]
+    md_label = f"{mds[0]}-{mds[-1]}" if len(mds) > 1 else str(mds[0])
+    name = f"newsroom-md{md_label}-{time.strftime('%Y%m%d-%H%M%S')}"
     t0 = time.perf_counter()
     if args.reuse_items:
         items = json.loads(Path(args.reuse_items).read_text(encoding="utf-8"))
@@ -302,9 +489,13 @@ async def main() -> int:
         for it in items:  # the fabrication test only needs the number audit, so it can be re-run offline
             if it.get("planted"):
                 it["planted"]["fabrication_caught"] = fabrication_caught_offline(it)
+                it["planted"].update(plant_in_renditions(it))
     else:
-        print(f"Collecting {args.items} moments from matchday {args.matchday} ...")
-        items = await collect(args.matchday, args.items, args.max_minutes)
+        items = []
+        per = math.ceil(args.items / len(mds))
+        for md in mds:
+            print(f"Collecting {per} moments from matchday {md} ...")
+            items += await collect(md, per, args.max_minutes)
         saved = RESULTS / f"{name}.items.json"
         saved.write_text(json.dumps(items, default=str, ensure_ascii=False), encoding="utf-8")
         print(f"Saved collected items to {saved}")
@@ -314,7 +505,7 @@ async def main() -> int:
         judged = ai_judges(items, RESULTS, name)
         summary.update({k: v for k, v in judged.items() if k != "all_metrics"})
     gates = gate(summary)
-    meta = {"name": name, "date": time.strftime("%Y-%m-%d %H:%M"), "matchday": args.matchday,
+    meta = {"name": name, "date": time.strftime("%Y-%m-%d %H:%M"), "matchday": ", ".join(map(str, mds)),
             "analyst_model": os.getenv("MODEL_REASONING", "gpt-5-mini"), "host_model": os.getenv("MODEL_FAST", "gpt-4.1-mini"),
             "judge_model": os.getenv("JUDGE_MODEL", os.getenv("MODEL_FAST", "gpt-4.1-mini")),
             "duration_s": round(time.perf_counter() - t0, 1)}

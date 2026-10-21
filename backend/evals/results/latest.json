@@ -1,52 +1,158 @@
 {
  "meta": {
-  "name": "newsroom-md11-20261020-214737",
-  "date": "2026-10-20 21:53",
-  "matchday": 11,
+  "name": "newsroom-md11-13-20261022-020532",
+  "date": "2026-10-22 02:19",
+  "matchday": "11, 12, 13",
   "analyst_model": "gpt-5-mini",
   "host_model": "gpt-4.1-mini",
   "judge_model": "gpt-4.1-mini",
-  "duration_s": 357.0
+  "duration_s": 863.7
  },
  "summary": {
-  "items": 24,
+  "items": 72,
   "kinds": {
-   "high_turnover": 2,
-   "line_breaking_pass": 2,
-   "momentum_swing": 3,
-   "penalty_awarded": 1,
-   "goal": 4,
-   "big_chance": 1,
-   "great_save": 3,
-   "control_shift": 2,
-   "pressing_shift": 2,
-   "milestone": 2,
+   "high_turnover": 6,
+   "line_breaking_pass": 6,
+   "momentum_swing": 9,
+   "penalty_awarded": 2,
+   "goal": 12,
+   "big_chance": 6,
+   "great_save": 9,
+   "control_shift": 6,
+   "pressing_shift": 6,
+   "milestone": 6,
    "wonder_strike": 1,
-   "red_card": 1
+   "red_card": 3
   },
   "verified_rate": 1.0,
-  "first_pass_clean_rate": 0.875,
-  "rewrites_per_item": 0.125,
+  "first_pass_clean_rate": 0.8333333333333334,
+  "rewrites_per_item": 0.16666666666666666,
   "final_claim_accuracy": 1.0,
-  "renditions_with_untraceable_numbers": 0.08333333333333333,
+  "renditions_with_untraceable_numbers": 0.0,
   "language_coverage": 1.0,
   "labels_within_limit": 1.0,
-  "latency_p50_s": 8.6705,
-  "latency_p95_s": 13.313,
+  "latency_p50_s": 8.144,
+  "latency_p95_s": 12.868,
   "planted_claim_catch_rate": 1.0,
   "planted_fabrication_catch_rate": 1.0,
   "control_false_alarm_rate": 0.0,
-  "planted_tests": 24,
-  "groundedness": 4.913043478260869,
+  "planted_tests": 72,
+  "claims_checked": 216,
+  "claims_ok": 216,
+  "planted": {
+   "planted_claim": {
+    "what": "a claim inflated by 50%",
+    "caught": 72,
+    "n": 72,
+    "rate": 1.0,
+    "ci95": [
+     0.949,
+     1.0
+    ]
+   },
+   "near_miss": {
+    "what": "a claim just outside the Verifier's tolerance",
+    "caught": 72,
+    "n": 72,
+    "rate": 1.0,
+    "ci95": [
+     0.949,
+     1.0
+    ]
+   },
+   "wrong_subject": {
+    "what": "the right number credited to the wrong player or team",
+    "caught": 70,
+    "n": 70,
+    "rate": 1.0,
+    "ci95": [
+     0.948,
+     1.0
+    ]
+   },
+   "fixed_fabrication": {
+    "what": "the fixed fabricated sentence",
+    "caught": 72,
+    "n": 72,
+    "rate": 1.0,
+    "ci95": [
+     0.949,
+     1.0
+    ]
+   },
+   "varied_fabrication": {
+    "what": "a randomly drawn fabricated sentence",
+    "caught": 70,
+    "n": 72,
+    "rate": 0.9722222222222222,
+    "ci95": [
+     0.904,
+     0.992
+    ]
+   },
+   "rendition_number": {
+    "what": "a fabricated number in a translated rendition (en, es, Arabic digits)",
+    "caught": 211,
+    "n": 216,
+    "removed": 211,
+    "rate": 0.9768518518518519,
+    "ci95": [
+     0.947,
+     0.99
+    ]
+   }
+  },
+  "false_alarms": {
+   "untouched_item": {
+    "what": "the untouched verified item",
+    "flagged": 0,
+    "n": 72,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.051
+    ]
+   },
+   "within_tolerance": {
+    "what": "a claim moved but kept within tolerance",
+    "flagged": 0,
+    "n": 72,
+    "rate": 0.0,
+    "ci95": [
+     0.0,
+     0.051
+    ]
+   }
+  },
+  "blind_spots": {
+   "small_number_fabrication": {
+    "what": "a fabricated sentence using only numbers 0-11 (exempt by design)",
+    "caught": 0,
+    "n": 72,
+    "rate": 0.0
+   }
+  },
+  "planted_total_caught": 567,
+  "planted_total_tests": 574,
+  "planted_total_ci95": [
+   0.975,
+   0.994
+  ],
+  "near_miss_catch_rate": 1.0,
+  "wrong_subject_catch_rate": 1.0,
+  "varied_fabrication_catch_rate": 0.9722222222222222,
+  "rendition_number_catch_rate": 0.9768518518518519,
+  "tolerance_false_alarm_rate": 0.0,
+  "groundedness": 4.909090909090909,
   "relevance": 5.0,
-  "coherence": 4.608695652173913,
-  "fluency": 4.0,
-  "foundry_url": "https://ai.azure.com/resource/build/evaluation/56062c0f-939a-4a6c-8d0d-6d9d05c3715a?wsid=/subscriptions/991df65a-d37a-4d15-9414-3a448ce23817/resourceGroups/rg-footballytics-dev/providers/Microsoft.CognitiveServices/accounts/fbx-ai-5dn4hvp4nnbzs/projects/footballytics&tid=c46e3e34-90fe-4e13-9135-bdf6c03b41be",
+  "coherence": 4.545454545454546,
+  "fluency": 4.014925373134329,
+  "foundry_url": "https://ai.azure.com/resource/build/evaluation/939105f3-ffba-4559-ae90-2a97158baca4?wsid=/subscriptions/991df65a-d37a-4d15-9414-3a448ce23817/resourceGroups/rg-footballytics-dev/providers/Microsoft.CognitiveServices/accounts/fbx-ai-5dn4hvp4nnbzs/projects/footballytics&tid=c46e3e34-90fe-4e13-9135-bdf6c03b41be",
   "content_safety_defect_rates": {
-   "hate_unfairness_defect_rate": 0.0,
-   "sexual_defect_rate": 0.0,
+   "violence_defect_rate": 0.0,
    "self_harm_defect_rate": 0.0,
-   "violence_defect_rate": 0.0
+   "sexual_defect_rate": 0.0,
+   "hate_unfairness_defect_rate": 0.0
   }
  },
  "gates": [
@@ -81,9 +187,39 @@
    "pass": true
   },
   {
+   "metric": "near_miss_catch_rate",
+   "value": 1.0,
+   "threshold": ">= 0.95",
+   "pass": true
+  },
+  {
+   "metric": "wrong_subject_catch_rate",
+   "value": 1.0,
+   "threshold": ">= 0.95",
+   "pass": true
+  },
+  {
+   "metric": "varied_fabrication_catch_rate",
+   "value": 0.972,
+   "threshold": ">= 0.9",
+   "pass": true
+  },
+  {
+   "metric": "rendition_number_catch_rate",
+   "value": 0.977,
+   "threshold": ">= 0.95",
+   "pass": true
+  },
+  {
+   "metric": "tolerance_false_alarm_rate",
+   "value": 0.0,
+   "threshold": "<= 0.1",
+   "pass": true
+  },
+  {
    "metric": "renditions_with_untraceable_numbers",
-   "value": 0.083,
-   "threshold": "<= 0.15",
+   "value": 0.0,
+   "threshold": "<= 0.02",
    "pass": true
   },
   {
@@ -94,13 +230,13 @@
   },
   {
    "metric": "latency_p95_s",
-   "value": 13.313,
+   "value": 12.868,
    "threshold": "<= 30.0",
    "pass": true
   },
   {
    "metric": "groundedness",
-   "value": 4.913,
+   "value": 4.909,
    "threshold": ">= 3.5",
    "pass": true
   },
@@ -112,7 +248,7 @@
   },
   {
    "metric": "coherence",
-   "value": 4.609,
+   "value": 4.545,
    "threshold": ">= 3.5",
    "pass": true
   }
@@ -132,12 +268,10 @@
     "en",
     "es"
    ],
-   "untraceable_numbers": [
-    "30"
-   ],
+   "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 12.43,
-   "headline": "Rahman\u2019s early interception swings momentum to Falconridge"
+   "latency_s": 10.823,
+   "headline": "Rahman\u2019s early interception halts Northgate momentum"
   },
   {
    "moment_id": "md11-SBC-RDC-m00021",
@@ -153,12 +287,10 @@
     "en",
     "es"
    ],
-   "untraceable_numbers": [
-    "18.6"
-   ],
+   "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 9.75,
-   "headline": "Early 45\u2011metre line\u2011breaking pass sets tone"
+   "latency_s": 10.76,
+   "headline": "Early 45\u2011metre line\u2011breaking ball splits defence"
   },
   {
    "moment_id": "md11-FCR-NGU-m00022",
@@ -176,8 +308,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 8.302,
-   "headline": "Petrov\u2019s high-risk cross breaks the deadlock pressure"
+   "latency_s": 10.229,
+   "headline": "Early line-breaking cross forces attention"
   },
   {
    "moment_id": "md11-FCR-NGU-m00027",
@@ -195,8 +327,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 7.54,
-   "headline": "Falconridge controls opening threat entirely"
+   "latency_s": 8.533,
+   "headline": "Falconridge dominates early attack, seizing momentum"
   },
   {
    "moment_id": "md11-FCR-NGU-m00033",
@@ -214,8 +346,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 8.188,
-   "headline": "Early penalty hands Rahman a game-changing chance"
+   "latency_s": 7.57,
+   "headline": "Early penalty hands Rahman a match-defining chance"
   },
   {
    "moment_id": "md11-HBC-HFP-m00042",
@@ -233,18 +365,18 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 9.727,
-   "headline": "Early high turnover sparks HFP counter opportunity"
+   "latency_s": 8.533,
+   "headline": "Early high turnover sparks HFP counter chance"
   },
   {
    "moment_id": "md11-FCR-NGU-m00043",
    "kind": "goal",
    "minute": 3,
-   "status": "verified",
+   "status": "corrected",
    "claims": 3,
    "claims_ok": 3,
-   "first_pass_clean": true,
-   "rewrites": 0,
+   "first_pass_clean": false,
+   "rewrites": 1,
    "languages": [
     "ar",
     "en",
@@ -252,8 +384,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 7.182,
-   "headline": "Early penalty gives Falconridge a sharp lead"
+   "latency_s": 8.524,
+   "headline": "Early penalty gives Falconridge an immediate lead"
   },
   {
    "moment_id": "md11-FNV-KGA-m00045",
@@ -271,8 +403,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 9.039,
-   "headline": "Kingsbridge seizes early control with concentrated threat"
+   "latency_s": 7.501,
+   "headline": "Early momentum swing: Kingsbridge seizes attacking control"
   },
   {
    "moment_id": "md11-FNV-KGA-m00051",
@@ -290,8 +422,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 8.198,
-   "headline": "Early corner header gives Kingsbridge shock lead"
+   "latency_s": 7.136,
+   "headline": "Early corner header hands leaders the lead"
   },
   {
    "moment_id": "md11-OKU-THW-m00054",
@@ -309,8 +441,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 13.313,
-   "headline": "Early penalty hands Thornbury the lead"
+   "latency_s": 6.735,
+   "headline": "Early penalty gives Thornbury crucial lead"
   },
   {
    "moment_id": "md11-SLK-WRA-m00061",
@@ -328,8 +460,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 15.368,
-   "headline": "Early big chance \u2014 Andersson fluffs a 0.40 xG opportunity"
+   "latency_s": 7.478,
+   "headline": "Big chance wasted by Andersson inside box"
   },
   {
    "moment_id": "md11-SLK-WRA-m00063",
@@ -347,8 +479,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 7.954,
-   "headline": "Westbrook dominates early attacking picture"
+   "latency_s": 8.862,
+   "headline": "Westbrook seizes early control after flurry of pressure"
   },
   {
    "moment_id": "md11-OKU-THW-m00076",
@@ -366,8 +498,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 7.524,
-   "headline": "Delacroix\u2019s reflex stop halts Oakhurst momentum"
+   "latency_s": 92.689,
+   "headline": "Huge early save preserves Thornbury lead"
   },
   {
    "moment_id": "md11-HBC-HFP-m00081",
@@ -385,18 +517,18 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 7.989,
-   "headline": "Early penalty puts Harbour City in control"
+   "latency_s": 7.708,
+   "headline": "Early penalty gives Harbour City the lead"
   },
   {
    "moment_id": "md11-GHA-BLW-m00086",
    "kind": "control_shift",
    "minute": 9,
-   "status": "corrected",
+   "status": "verified",
    "claims": 3,
    "claims_ok": 3,
-   "first_pass_clean": false,
-   "rewrites": 1,
+   "first_pass_clean": true,
+   "rewrites": 0,
    "languages": [
     "ar",
     "en",
@@ -404,8 +536,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 13.03,
-   "headline": "Blackwater establish early control and tempo"
+   "latency_s": 7.358,
+   "headline": "Blackwater seizes early control and momentum"
   },
   {
    "moment_id": "md11-MLH-EMT-m00087",
@@ -423,18 +555,18 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 7.62,
-   "headline": "Eastmoor seize control early and tilt tempo their way"
+   "latency_s": 11.262,
+   "headline": "Eastmoor seize early control and dictate tempo"
   },
   {
    "moment_id": "md11-FNV-KGA-m00107",
    "kind": "great_save",
    "minute": 12,
-   "status": "verified",
+   "status": "corrected",
    "claims": 3,
    "claims_ok": 3,
-   "first_pass_clean": true,
-   "rewrites": 0,
+   "first_pass_clean": false,
+   "rewrites": 1,
    "languages": [
     "ar",
     "en",
@@ -442,8 +574,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 8.165,
-   "headline": "Crucial reflex save halts Kingsbridge surge"
+   "latency_s": 10.595,
+   "headline": "Crucial reflex denies equaliser after KGA surge"
   },
   {
    "moment_id": "md11-SBC-RDC-m00120",
@@ -461,8 +593,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 7.341,
-   "headline": "Jansen thwarts 103 km/h strike to keep game level"
+   "latency_s": 7.174,
+   "headline": "Jansen\u2019s reflex stop prevents early Redcliffe breakthrough"
   },
   {
    "moment_id": "md11-MLH-EMT-m00152",
@@ -480,32 +612,13 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 10.03,
-   "headline": "Eastmoor\u2019s press just let Marlow Heath off the hook"
+   "latency_s": 8.174,
+   "headline": "Eastmoor's press just eased \u2014 PPDA spikes massively"
   },
   {
    "moment_id": "md11-FCR-NGU-m00154",
    "kind": "pressing_shift",
    "minute": 21,
-   "status": "verified",
-   "claims": 3,
-   "claims_ok": 3,
-   "first_pass_clean": true,
-   "rewrites": 0,
-   "languages": [
-    "ar",
-    "en",
-    "es"
-   ],
-   "untraceable_numbers": [],
-   "labels_ok": true,
-   "latency_s": 9.061,
-   "headline": "Northgate\u2019s press eases \u2014 PPDA triples, control shifts"
-  },
-  {
-   "moment_id": "md11-SBC-RDC-m00203",
-   "kind": "milestone",
-   "minute": 26,
    "status": "corrected",
    "claims": 3,
    "claims_ok": 3,
@@ -518,8 +631,27 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 12.505,
-   "headline": "Andersson\u2019s first goal kicks Redcliffe into lead"
+   "latency_s": 10.349,
+   "headline": "Northgate ease pressure, PPDA jumps sharply"
+  },
+  {
+   "moment_id": "md11-SBC-RDC-m00203",
+   "kind": "milestone",
+   "minute": 26,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.355,
+   "headline": "Andersson breaks Redcliffe drought with timely opener"
   },
   {
    "moment_id": "md11-OKU-THW-m00230",
@@ -537,8 +669,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 10.941,
-   "headline": "Castell\u2019s 21m strike kills Oakhurst\u2019s comeback hopes"
+   "latency_s": 7.456,
+   "headline": "Castell's long strike kills Oakhurst momentum"
   },
   {
    "moment_id": "md11-RIV-PTE-m00259",
@@ -556,8 +688,8 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 12.427,
-   "headline": "Red card swings control decisively to Riverside"
+   "latency_s": 10.749,
+   "headline": "Port Ellis reduced to 10 men at 1-0, 33rd minute"
   },
   {
    "moment_id": "md11-SBC-RDC-m00342",
@@ -575,8 +707,920 @@
    ],
    "untraceable_numbers": [],
    "labels_ok": true,
-   "latency_s": 7.64,
-   "headline": "Benali breaks his duck to pull RDC back into it"
+   "latency_s": 8.55,
+   "headline": "Benali breaks drought to halve deficit early second half"
+  },
+  {
+   "moment_id": "md12-SLK-BLW-m00360",
+   "kind": "line_breaking_pass",
+   "minute": 1,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 8.127,
+   "headline": "Spectacular 35m line-breaker splits nine defenders"
+  },
+  {
+   "moment_id": "md12-FNV-NGU-m00364",
+   "kind": "high_turnover",
+   "minute": 1,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.162,
+   "headline": "Early interception gives Northgate instant threat"
+  },
+  {
+   "moment_id": "md12-RIV-RDC-m00365",
+   "kind": "line_breaking_pass",
+   "minute": 1,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 9.502,
+   "headline": "Early 30m line-breaking pass sets tone for Redcliffe"
+  },
+  {
+   "moment_id": "md12-MLH-THW-m00380",
+   "kind": "goal",
+   "minute": 3,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.224,
+   "headline": "Early cross creates shock opening goal"
+  },
+  {
+   "moment_id": "md12-MLH-THW-m00381",
+   "kind": "milestone",
+   "minute": 3,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 28.576,
+   "headline": "Early opener: Rui Silva-Reid breaks his duck"
+  },
+  {
+   "moment_id": "md12-OKU-KGA-m00382",
+   "kind": "high_turnover",
+   "minute": 3,
+   "status": "corrected",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": false,
+   "rewrites": 1,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 9.505,
+   "headline": "Early high turnover sets up instant danger for Kingsbridge"
+  },
+  {
+   "moment_id": "md12-OKU-KGA-m00383",
+   "kind": "goal",
+   "minute": 3,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 5.338,
+   "headline": "Early Rinaldi strike rocks the hosts"
+  },
+  {
+   "moment_id": "md12-OKU-KGA-m00384",
+   "kind": "milestone",
+   "minute": 3,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.036,
+   "headline": "Early strike takes Rinaldi to ten for the season"
+  },
+  {
+   "moment_id": "md12-FNV-NGU-m00407",
+   "kind": "great_save",
+   "minute": 6,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 6.695,
+   "headline": "Early screamer denied by Sorensen"
+  },
+  {
+   "moment_id": "md12-GHA-IRV-m00415",
+   "kind": "momentum_swing",
+   "minute": 7,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.299,
+   "headline": "Ironvale seizes early attacking control"
+  },
+  {
+   "moment_id": "md12-SBC-WRA-m00421",
+   "kind": "great_save",
+   "minute": 8,
+   "status": "corrected",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": false,
+   "rewrites": 1,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 8.817,
+   "headline": "Early scream saved by Sami Jansen"
+  },
+  {
+   "moment_id": "md12-RIV-RDC-m00425",
+   "kind": "great_save",
+   "minute": 8,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 6.143,
+   "headline": "Crucial early save halts Redcliffe momentum"
+  },
+  {
+   "moment_id": "md12-ASA-EMT-m00431",
+   "kind": "control_shift",
+   "minute": 9,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 8.161,
+   "headline": "Eastmoor grab early control, forcing Ashcombe onto back foot"
+  },
+  {
+   "moment_id": "md12-MLH-THW-m00432",
+   "kind": "control_shift",
+   "minute": 9,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 8.46,
+   "headline": "Thornbury seize control early, pinning Marlow back"
+  },
+  {
+   "moment_id": "md12-FNV-NGU-m00445",
+   "kind": "momentum_swing",
+   "minute": 11,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 8.196,
+   "headline": "Fenwick seize control after shaky start"
+  },
+  {
+   "moment_id": "md12-OKU-KGA-m00456",
+   "kind": "big_chance",
+   "minute": 12,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 8.995,
+   "headline": "Huge early big chance blocked inside box"
+  },
+  {
+   "moment_id": "md12-ASA-EMT-m00461",
+   "kind": "goal",
+   "minute": 13,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.992,
+   "headline": "Chen\u2019s 13th\u2011minute strike breaks deadlock"
+  },
+  {
+   "moment_id": "md12-GHA-IRV-m00507",
+   "kind": "pressing_shift",
+   "minute": 21,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 8.936,
+   "headline": "Ironvale eases off pressing; Greyhaven gains breathing space"
+  },
+  {
+   "moment_id": "md12-ASA-EMT-m00508",
+   "kind": "pressing_shift",
+   "minute": 21,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 9.069,
+   "headline": "Eastmoor\u2019s press suddenly cuts opponent\u2019s time on ball"
+  },
+  {
+   "moment_id": "md12-SLK-BLW-m00510",
+   "kind": "momentum_swing",
+   "minute": 21,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 9.253,
+   "headline": "Silverlake seizes attacking control amid chaotic spell"
+  },
+  {
+   "moment_id": "md12-OKU-KGA-m00518",
+   "kind": "penalty_awarded",
+   "minute": 21,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 5.902,
+   "headline": "High-value penalty offers quick equaliser chance"
+  },
+  {
+   "moment_id": "md12-SBC-WRA-m00520",
+   "kind": "goal",
+   "minute": 21,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 12.868,
+   "headline": "Low-xG long-range opener breaks Rangers\u2019 control"
+  },
+  {
+   "moment_id": "md12-MLH-THW-m00527",
+   "kind": "red_card",
+   "minute": 22,
+   "status": "corrected",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": false,
+   "rewrites": 1,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 10.152,
+   "headline": "Red card swings balance to Thornbury Wanderers"
+  },
+  {
+   "moment_id": "md12-SBC-WRA-m00569",
+   "kind": "big_chance",
+   "minute": 28,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 6.614,
+   "headline": "Huge 2m sitter denied \u2014 let-off for Stonebridge"
+  },
+  {
+   "moment_id": "md13-HBC-RDC-m00591",
+   "kind": "line_breaking_pass",
+   "minute": 1,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 12.45,
+   "headline": "Risky 34m line-breaker splits six defenders"
+  },
+  {
+   "moment_id": "md13-SLK-GHA-m00592",
+   "kind": "high_turnover",
+   "minute": 1,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 6.595,
+   "headline": "Early high turnover wins Greyhaven instant threat"
+  },
+  {
+   "moment_id": "md13-OKU-NGU-m00595",
+   "kind": "line_breaking_pass",
+   "minute": 2,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 9.474,
+   "headline": "Early 6\u2011man bypass shifts momentum to Northgate"
+  },
+  {
+   "moment_id": "md13-OKU-NGU-m00596",
+   "kind": "great_save",
+   "minute": 2,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.022,
+   "headline": "Early thunderbolt denied by Venter"
+  },
+  {
+   "moment_id": "md13-MLH-KGA-m00598",
+   "kind": "goal",
+   "minute": 2,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 5.481,
+   "headline": "Early free\u2011kick header hands leaders an instant edge"
+  },
+  {
+   "moment_id": "md13-IRV-EMT-m00599",
+   "kind": "high_turnover",
+   "minute": 2,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 5.612,
+   "headline": "Early high turnover gifts Ironvale a chance"
+  },
+  {
+   "moment_id": "md13-ASA-THW-m00606",
+   "kind": "momentum_swing",
+   "minute": 3,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.307,
+   "headline": "Thornbury seize early attacking control"
+  },
+  {
+   "moment_id": "md13-FNV-HFP-m00619",
+   "kind": "momentum_swing",
+   "minute": 4,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.303,
+   "headline": "Highfield dominate early momentum on rush of chances"
+  },
+  {
+   "moment_id": "md13-FNV-HFP-m00630",
+   "kind": "great_save",
+   "minute": 5,
+   "status": "corrected",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": false,
+   "rewrites": 1,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 10.295,
+   "headline": "Early reflex stop preserves 0-0 tense balance"
+  },
+  {
+   "moment_id": "md13-RIV-WRA-m00632",
+   "kind": "great_save",
+   "minute": 5,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 4.975,
+   "headline": "Early stop: big chance denied at 5 minutes"
+  },
+  {
+   "moment_id": "md13-MLH-KGA-m00636",
+   "kind": "goal",
+   "minute": 5,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 5.279,
+   "headline": "Rinaldi\u2019s early strike kills Marlow Heath hope"
+  },
+  {
+   "moment_id": "md13-SBC-BLW-m00645",
+   "kind": "goal",
+   "minute": 6,
+   "status": "corrected",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": false,
+   "rewrites": 1,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 10.717,
+   "headline": "Obi\u2019s long strike breaks the deadlock early"
+  },
+  {
+   "moment_id": "md13-ASA-THW-m00656",
+   "kind": "control_shift",
+   "minute": 9,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.589,
+   "headline": "Chaotic opening: game slipping out of control"
+  },
+  {
+   "moment_id": "md13-OKU-NGU-m00657",
+   "kind": "control_shift",
+   "minute": 9,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.272,
+   "headline": "Oakhurst seize control after nervy opening minutes"
+  },
+  {
+   "moment_id": "md13-FNV-HFP-m00672",
+   "kind": "goal",
+   "minute": 10,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 8.706,
+   "headline": "Yamamoto\u2019s low-xG opener breaks the deadlock"
+  },
+  {
+   "moment_id": "md13-FNV-HFP-m00673",
+   "kind": "milestone",
+   "minute": 10,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 6.542,
+   "headline": "Yamamoto\u2019s early strike doubles his season tally"
+  },
+  {
+   "moment_id": "md13-RIV-WRA-m00674",
+   "kind": "big_chance",
+   "minute": 10,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 6.233,
+   "headline": "Bellamy\u2019s blocked big chance swings early momentum"
+  },
+  {
+   "moment_id": "md13-ASA-THW-m00679",
+   "kind": "momentum_swing",
+   "minute": 12,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.269,
+   "headline": "Thornbury seizes attacking control early"
+  },
+  {
+   "moment_id": "md13-SLK-GHA-m00734",
+   "kind": "big_chance",
+   "minute": 20,
+   "status": "corrected",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": false,
+   "rewrites": 1,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 10.586,
+   "headline": "Big chance stopped as away pressure continues"
+  },
+  {
+   "moment_id": "md13-IRV-EMT-m00740",
+   "kind": "pressing_shift",
+   "minute": 21,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.7,
+   "headline": "Eastmoor's press loosens \u2014 PPDA jumps, control drifts"
+  },
+  {
+   "moment_id": "md13-SLK-GHA-m00742",
+   "kind": "pressing_shift",
+   "minute": 21,
+   "status": "corrected",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": false,
+   "rewrites": 1,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 10.37,
+   "headline": "Greyhaven ease off the press, ceding control to Silverlake"
+  },
+  {
+   "moment_id": "md13-SBC-BLW-m00778",
+   "kind": "big_chance",
+   "minute": 25,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 7.789,
+   "headline": "Huge chance blocked after Sato\u2019s dangerous delivery"
+  },
+  {
+   "moment_id": "md13-HBC-RDC-m00780",
+   "kind": "red_card",
+   "minute": 25,
+   "status": "corrected",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": false,
+   "rewrites": 1,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 9.803,
+   "headline": "Red card leaves Harbour City a man down at 25'"
+  },
+  {
+   "moment_id": "md13-SLK-GHA-m00978",
+   "kind": "milestone",
+   "minute": 51,
+   "status": "verified",
+   "claims": 3,
+   "claims_ok": 3,
+   "first_pass_clean": true,
+   "rewrites": 0,
+   "languages": [
+    "ar",
+    "en",
+    "es"
+   ],
+   "untraceable_numbers": [],
+   "labels_ok": true,
+   "latency_s": 22.473,
+   "headline": "Andersson\u2019s opener is his fifth of the season"
   }
  ]
 }

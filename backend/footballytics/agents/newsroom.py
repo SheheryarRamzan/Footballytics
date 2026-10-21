@@ -21,6 +21,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -30,12 +31,46 @@ from agent_framework import Agent, Executor, WorkflowBuilder, WorkflowContext, h
 from ..engine.moments import Moment
 from ..intel import tools
 from . import prompts
-from .audit import unsupported_numbers
+from .audit import numbers_in, unsupported_numbers
 from .clients import chat_client
 from .schemas import Insight, Renditions
 
 log = logging.getLogger("footballytics.newsroom")
 MAX_ATTEMPTS = 3
+RENDITION_TEXTS = ("fan", "analyst", "kids", "audio", "label")  # everything a viewer can see or hear
+_SENTENCE = re.compile(r"(?<=[.!?۔؟])\s+")  # also the Urdu full stop and Arabic question mark
+
+
+def rendition_problems(rend: dict[str, dict], evidence: list, minute: int) -> dict[str, list[str]]:
+    """Language -> numbers in any audience text that cannot be traced to the verified evidence."""
+    out = {}
+    for lang, r in rend.items():
+        bad = unsupported_numbers([r.get(k) or "" for k in RENDITION_TEXTS], evidence, always_ok=[minute])
+        if bad:
+            out[lang] = bad
+    return out
+
+
+def host_evidence(insight: dict, moment: dict) -> list:
+    """The numbers a rendition may use: the verified insight (text and checked claims) and the moment's facts."""
+    return [insight, moment.get("facts") or {}]
+
+
+def scrub_rendition(r: dict, bad: list[str]) -> dict:
+    """Last resort: drop every sentence that carries an untraceable number (never put one on air).
+
+    If a text loses every sentence it falls back to another clean text of the same language, then to its label.
+    """
+    def scrub(text: str) -> str:
+        keep = [x for x in _SENTENCE.split(text or "") if not any(raw in bad for _, _, raw in numbers_in(x))]
+        return " ".join(keep).strip()
+
+    out = {k: (scrub(v) if k in RENDITION_TEXTS else v) for k, v in r.items()}
+    label = out.get("label") or ""
+    for k in ("fan", "analyst", "kids", "audio"):
+        if not out.get(k):
+            out[k] = next((out[o] for o in ("fan", "kids", "analyst", "audio") if out.get(o)), label)
+    return out
 
 
 # ----------------------------------------------------------------------------- messages
@@ -167,11 +202,15 @@ class HostExecutor(Executor):
     async def render(self, v: Verified, ctx: WorkflowContext[HostOut]) -> None:
         t0 = time.perf_counter()
 
-        async def one(lang: str) -> list:
+        async def one(lang: str, avoid: list[str] | None = None) -> list:
             payload = {"languages": [lang], "verified_insight": v.insight.model_dump(exclude={"claims"}),
                        "moment": {k: v.task.moment[k] for k in ("kind", "minute", "facts")},
                        "names": v.task.context.get("names", {})}
-            resp = await self.agent.run("Render this verified insight.\n" + json.dumps(payload, default=str),
+            ask = "Render this verified insight.\n"
+            if avoid:
+                ask = (f"Your previous draft used numbers that are not in the verified insight or the moment's facts: "
+                       f"{', '.join(avoid)}. Rewrite it using only those numbers, or none.\n") + ask
+            resp = await self.agent.run(ask + json.dumps(payload, default=str),
                                         options={"response_format": Renditions, "store": False})
             out = resp.value if isinstance(resp.value, Renditions) else Renditions.model_validate_json(resp.text)
             return out.renditions
@@ -179,10 +218,25 @@ class HostExecutor(Executor):
         rend = {}
         for group in await asyncio.gather(*(one(lang) for lang in v.task.languages)):
             rend.update({r.language: r.model_dump(exclude={"language"}) for r in group})
-        bad = unsupported_numbers([r["analyst"] + " " + r["fan"] for r in rend.values()],
-                                  [v.task.context, v.insight.model_dump()], always_ok=[v.task.moment["minute"]])
-        v.task.trace.append({"agent": "host", "ms": _ms(t0), "note": f"{len(rend)} language(s)",
-                             "issues": [f"unsupported numbers: {bad}"] if bad else []})
+        # The Host writes after the Verifier, so its numbers are audited too: one rewrite, then any sentence that
+        # still carries an untraceable number is dropped. Nothing unverified goes on air. The evidence is exactly what
+        # the Host was given (the verified insight and the moment's facts), not the whole match context: a wider pool
+        # lets an invented number pass whenever it happens to equal some unrelated statistic.
+        evidence = host_evidence(v.insight.model_dump(), v.task.moment)
+        minute = v.task.moment["minute"]
+        first = rendition_problems(rend, evidence, minute)
+        notes, issues = [], [f"unsupported numbers ({lang}): {', '.join(b)}" for lang, b in first.items()]
+        if first:
+            for group in await asyncio.gather(*(one(lang, first[lang]) for lang in first)):
+                rend.update({r.language: r.model_dump(exclude={"language"}) for r in group if r.language in first})
+            notes.append(f"rewrote {', '.join(first)}")
+            still = rendition_problems({lang: rend[lang] for lang in first if lang in rend}, evidence, minute)
+            for lang, bad in still.items():
+                rend[lang] = scrub_rendition(rend[lang], bad)
+            if still:
+                notes.append("removed " + "; ".join(f"{lang}: {', '.join(b)}" for lang, b in still.items()))
+        v.task.trace.append({"agent": "host", "ms": _ms(t0),
+                             "note": "; ".join([f"{len(rend)} language(s)", *notes]), "issues": issues})
         await ctx.send_message(HostOut(v, rend))
 
 

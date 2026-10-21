@@ -86,34 +86,49 @@ Every number a fan hears has to be true. That claim is **measured on every chang
 
 ```bash
 cd backend && .venv/Scripts/pip install -e ".[evals]"
-.venv/Scripts/python -m footballytics.evals.run --matchday 11 --items 24   # exits non-zero if a gate fails
+.venv/Scripts/python -m footballytics.evals.run --matchdays 11,12,13 --items 72   # exits non-zero if a gate fails
 ```
 
-The harness plays a full matchday that the newsroom has never seen. It sends 24 moments through the real Triage, Analyst, Verifier, Host and Publisher workflow in three languages (en, es, ar), then scores the output three ways:
+The harness plays three matchdays the newsroom has never seen. It sends 72 moments through the real Triage, Analyst, Verifier, Host and Publisher workflow in three languages (en, es, ar), then scores the output three ways:
 
 1. **Deterministic checks.**
-   - Every claim is re-checked against live data.
-   - Every number in every rendition is traced to evidence.
+   - Every structured claim is re-checked against live data.
+   - Every number in every published rendition (fan, analyst, kids, audio, label, each language) must trace to the evidence the Host was given.
    - Language coverage and latency are measured.
-2. **Planted-error tests.**
-   - For each moment, the Verifier is handed a corrupted claim and a fabricated statistic. It must catch both.
-   - An untouched control item must pass, so false alarms are measured too.
+2. **Planted-error tests.** Six kinds of error are planted in every published item, at the moment it is produced:
+   - a claim inflated by 50%;
+   - a claim just outside the Verifier's tolerance;
+   - the right number credited to the wrong player or team;
+   - a fixed fabricated sentence;
+   - a randomly drawn fabricated sentence;
+   - a fabricated number inside a translated rendition (in Arabic digits for Arabic).
+
+   Two controls measure false alarms: the untouched item, and a claim moved but kept within tolerance. Every rate comes with its 95% confidence interval.
 3. **AI judges via the Azure AI Evaluation SDK.** Groundedness, relevance, coherence and fluency, plus content safety (hate, sexual, violence, self-harm). The run is **logged to the Foundry project**, so it appears under *Evaluations*.
 
-Latest run ([full report](docs/EVALUATION.md), [Foundry run](https://ai.azure.com/resource/build/evaluation/56062c0f-939a-4a6c-8d0d-6d9d05c3715a?wsid=/subscriptions/991df65a-d37a-4d15-9414-3a448ce23817/resourceGroups/rg-footballytics-dev/providers/Microsoft.CognitiveServices/accounts/fbx-ai-5dn4hvp4nnbzs/projects/footballytics&tid=c46e3e34-90fe-4e13-9135-bdf6c03b41be)): **11/11 gates pass.**
+Latest run ([full report](docs/EVALUATION.md), [Foundry run](https://ai.azure.com/resource/build/evaluation/939105f3-ffba-4559-ae90-2a97158baca4?wsid=/subscriptions/991df65a-d37a-4d15-9414-3a448ce23817/resourceGroups/rg-footballytics-dev/providers/Microsoft.CognitiveServices/accounts/fbx-ai-5dn4hvp4nnbzs/projects/footballytics&tid=c46e3e34-90fe-4e13-9135-bdf6c03b41be)): **16/16 gates pass.**
 
-| Gate | Result | Threshold |
-|---|---|---|
-| Claims accurate on air | **100%** | ≥ 98% |
-| Planted wrong claims caught | **100%** | ≥ 95% |
-| Planted fabricated stats caught | **100%** | ≥ 90% |
-| False alarms on clean items | **0%** | ≤ 10% |
-| Verified rate / language coverage | **100% / 100%** | ≥ 90% / ≥ 95% |
-| Groundedness · relevance · coherence (1–5) | **4.91 · 5.00 · 4.61** | ≥ 3.5 |
-| Content-safety defects | **0%** | – |
-| Latency p50 / p95 (Analyst + Verifier + 3-language Host) | **8.7 s / 13.3 s** | p95 ≤ 30 s |
+| Measure | Result |
+|---|---|
+| Published claims that match live data | **216 / 216** (within 5%, or 0.02 for small decimals / 0.5 for counts) |
+| Planted errors caught, six kinds | **567 / 574** (95% CI 98–99%) |
+| False alarms on correct items | **0 / 144** |
+| Fabricated numbers in translations, removed before air | **211 / 216** |
+| Groundedness · relevance · coherence (1–5, AI judge) | **4.91 · 5.00 · 4.55** |
+| Content-safety defects | **0%** |
+| Latency p50 / p95 (Analyst + Verifier + 3-language Host) | **8.1 s / 12.9 s** |
 
-The evaluation found and fixed a real bug: the first run caught only 67% of fabricated statistics. The prose audit was too tolerant, and coordinates and IDs counted as evidence. The audit is now precision-aware, and fabrication catch is 100% with 0% false alarms. The live **Studio** shows the latest gates (`/api/evals`).
+**What the evaluation changed.**
+- The first version caught only 67% of fabricated statistics, because the prose audit was too tolerant and coordinates and IDs counted as evidence. The audit is now precision-aware.
+- It also showed that the Host's renditions were audited but never blocked. They now get one rewrite, and any sentence that still carries an unverified number is removed before air.
+- Checking the Host against the whole match context let a random invented number pass about 6% of the time, by coinciding with some unrelated statistic. The Host is now checked against only what it was given.
+
+**Known blind spots,** reported in the report rather than hidden:
+- Whole numbers 0–11 are exempt from the number audit, because prose uses them for counts and ordinals.
+- A correct number credited to the wrong player in the prose (as opposed to in a claim) isn't caught.
+- Statements without numbers are judged only by the AI judge.
+
+The live **Studio** shows the latest gates (`/api/evals`).
 
 **CI** (`.github/workflows/`):
 - `ci.yml` runs the tests, the realism scorecard and the frontend build on every push.
@@ -202,7 +217,7 @@ cd ../backend && .venv/Scripts/python -m uvicorn footballytics.api.app:app --por
 
 Without Foundry settings, everything except the LLM agents still runs: simulation, stats, moments, Director, overlays and template captions.
 
-**Tests:** `cd backend && .venv/Scripts/python -m pytest -q` runs 41 tests covering the simulator, engine, tools, agent guard rails, personalisation, cloud routing and the auto-eventing logic.
+**Tests:** `cd backend && .venv/Scripts/python -m pytest -q` runs 50 tests covering the simulator, engine, tools, agent guard rails and trust guarantees, personalisation, cloud routing, the Studio lock and the auto-eventing logic.
 
 **Screenshots:** `python tools/screenshots.py --url http://localhost:8000/` drives the real UI with Playwright and Edge, and regenerates `docs/images/`.
 

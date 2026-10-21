@@ -10,6 +10,8 @@ function Quality() {
   const s = ev.summary;
   const pct = (v?: number | null) => (v == null ? "–" : `${Math.round(v * 100)}%`);
   const passed = ev.gates.filter((g: any) => g.pass).length;
+  const fa = s.false_alarms ? (Object.values(s.false_alarms) as { flagged: number; n: number }[]) : null;
+  const alarms = fa ? { flagged: fa.reduce((a, x) => a + x.flagged, 0), n: fa.reduce((a, x) => a + x.n, 0) } : null;
   return (
     <section className="panel studio-quality">
       <h2>
@@ -19,15 +21,28 @@ function Quality() {
         </span>
       </h2>
       <div className="kpis">
-        <div><b>{pct(s.final_claim_accuracy)}</b><span>claims accurate on air</span></div>
-        <div><b>{pct(s.planted_claim_catch_rate)}</b><span>planted wrong stats caught</span></div>
-        <div><b>{pct(s.planted_fabrication_catch_rate)}</b><span>invented stats caught</span></div>
+        {s.claims_checked != null ? (
+          <div><b>{s.claims_ok}/{s.claims_checked}</b><span>published claims match live data</span></div>
+        ) : (
+          <div><b>{pct(s.final_claim_accuracy)}</b><span>claims accurate on air</span></div>
+        )}
+        {s.planted_total_tests != null ? (
+          <div><b>{s.planted_total_caught}/{s.planted_total_tests}</b><span>planted errors caught ({Object.keys(s.planted ?? {}).length} kinds)</span></div>
+        ) : (
+          <div><b>{pct(s.planted_claim_catch_rate)}</b><span>planted wrong stats caught</span></div>
+        )}
+        {alarms ? (
+          <div><b>{alarms.flagged}/{alarms.n}</b><span>false alarms on correct items</span></div>
+        ) : (
+          <div><b>{pct(s.planted_fabrication_catch_rate)}</b><span>invented stats caught</span></div>
+        )}
         <div><b>{s.groundedness?.toFixed(2) ?? "–"}</b><span>groundedness (1-5, AI judge)</span></div>
         <div><b>{s.coherence?.toFixed(2) ?? "–"}</b><span>coherence (1-5)</span></div>
         <div><b>{pct(s.content_safety_defect_rates ? Math.max(...Object.values(s.content_safety_defect_rates as Record<string, number>)) : null)}</b><span>content-safety defects</span></div>
       </div>
       <p className="muted small">
-        {ev.meta.name}: {s.items} moments, {pct(s.language_coverage)} language coverage, p95 {s.latency_p95_s?.toFixed(1)}s.{" "}
+        {ev.meta.name}: {s.items} moments, {pct(s.language_coverage)} language coverage, p95 {s.latency_p95_s?.toFixed(1)}s
+        {s.planted_total_ci95 ? `; planted-error catch rate 95% CI ${pct(s.planted_total_ci95[0])}–${pct(s.planted_total_ci95[1])}` : ""}.{" "}
         {s.foundry_url && (
           <a href={s.foundry_url} target="_blank" rel="noreferrer">Open the run in Microsoft Foundry →</a>
         )}
