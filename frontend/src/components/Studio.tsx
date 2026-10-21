@@ -36,6 +36,43 @@ function Quality() {
   );
 }
 
+/** Auto-eventing: players, ball, passes and speeds recovered from broadcast video, scored against the answer key. */
+function AutoEventing() {
+  const ae = usePoll(() => fetch("/api/autoevent").then((r) => (r.ok ? r.json() : null)), 120_000, []);
+  if (!ae) return null;
+  const m = ae.metrics;
+  const pct = (v?: number | null) => (v == null ? "–" : `${Math.round(v * 100)}%`);
+  const num = (v?: number | null, d = 1) => (v == null ? "–" : v.toFixed(d));
+  const p = ae.passes;
+  return (
+    <section className="panel studio-ae">
+      <h2>
+        Auto-eventing · broadcast video → events
+        <span className="badge verified">scored vs answer key</span>
+      </h2>
+      <div className="ae-grid">
+        <img src="/auto-eventing.jpg" alt="Annotated broadcast frame: detected players by team, the tracked ball and a pitch minimap" />
+        <div>
+          <div className="kpis">
+            <div><b>{p.attempts.tp}/{p.attempts.true}</b><span>pass attempts found</span></div>
+            <div><b>{pct(p.outcome_correct)}</b><span>completed vs intercepted right</span></div>
+            <div><b>{num(p.speed_mae_kmh)}</b><span>pass speed error, km/h</span></div>
+            <div><b>{pct(m.detection.recall)}</b><span>players found (precision {pct(m.detection.precision)})</span></div>
+            <div><b>{num(m.localisation.mean_m, 2)} m</b><span>position error</span></div>
+            <div><b>{num(m.player_speed.top_speed_mae_kmh)}</b><span>top speed error, km/h</span></div>
+          </div>
+          <p className="muted small">
+            {ae.meta.seconds}s of {ae.meta.home} v {ae.meta.away} rendered by our 3D broadcast renderer; {ae.meta.detector}
+            {" "}finds players (plus a zoomed pass around the ball), a classical detector and path search follow the ball, and
+            passes, interceptions and speeds come from the tracks alone. Ball within 2 m {pct(m.ball.within_2m_share)}{" "}
+            of the time; team colours {pct(m.teams.accuracy)} correct.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function Studio() {
   const items = useStore((s) => s.items);
   const health = usePoll(() => api.health(), 3000, []);
@@ -65,6 +102,7 @@ export function Studio() {
         </div>
       </section>
       <Quality />
+      <AutoEventing />
       <section className="panel studio-list">
         <h2>Broadcast items</h2>
         <ul>

@@ -1,0 +1,254 @@
+{
+  "meta": {
+    "name": "autoevent-md09-HBC-KGA-20261021-170258",
+    "match_id": "md09-HBC-KGA",
+    "home": "Harbour City",
+    "away": "Kingsbridge Athletic",
+    "start_t": 5705.0,
+    "seconds": 45.0,
+    "fps": 25,
+    "frames": 1131,
+    "resolution": "1280x720",
+    "detector": "Faster R-CNN MobileNetV3-Large FPN (torchvision, COCO weights, no fine-tuning)",
+    "detector_hz": 12.5,
+    "detector_s_per_frame": 1.74,
+    "render_s_per_frame": 0.43,
+    "full_run_min": 24.5,
+    "runtime_s": 78.5,
+    "created": "2026-10-21T17:02:58"
+  },
+  "metrics": {
+    "detection": {
+      "iou": 0.5,
+      "tp": 9563,
+      "predicted": 10340,
+      "true": 11254,
+      "precision": 0.9248549323017408,
+      "recall": 0.8497423138439666,
+      "f1": 0.8857089932388627
+    },
+    "localisation": {
+      "mean_m": 0.37152610087743393,
+      "p90_m": 0.7152593600849598
+    },
+    "teams": {
+      "accuracy": 0.9494928369758444
+    },
+    "identity": {
+      "accuracy": 0.8313290808323748,
+      "tracks": 75,
+      "players_seen": 22
+    },
+    "ball": {
+      "visible_frames": 1047,
+      "aerial_frames": 84,
+      "tracked_frames": 1033,
+      "tracked_share": 0.9866284622731614,
+      "within_2m_share": 0.7521781219748306,
+      "median_error_m": 0.7621964972106651
+    },
+    "shots": {
+      "tp": 0,
+      "predicted": 0,
+      "true": 1,
+      "precision": null,
+      "recall": 0.0,
+      "f1": null,
+      "speed_abs_error_kmh": null,
+      "detected": []
+    },
+    "player_speed": {
+      "players": 22,
+      "top_speed_mae_kmh": 2.6136363636363638,
+      "rows": [
+        {
+          "player_id": "KGA-10",
+          "estimate_kmh": 30.5,
+          "true_kmh": 32.1
+        },
+        {
+          "player_id": "KGA-09",
+          "estimate_kmh": 29.4,
+          "true_kmh": 30.5
+        },
+        {
+          "player_id": "HBC-20",
+          "estimate_kmh": 27.4,
+          "true_kmh": 30.2
+        },
+        {
+          "player_id": "HBC-16",
+          "estimate_kmh": 32.0,
+          "true_kmh": 26.1
+        },
+        {
+          "player_id": "HBC-19",
+          "estimate_kmh": 27.0,
+          "true_kmh": 25.7
+        },
+        {
+          "player_id": "HBC-10",
+          "estimate_kmh": 19.2,
+          "true_kmh": 25.6
+        },
+        {
+          "player_id": "KGA-17",
+          "estimate_kmh": 26.3,
+          "true_kmh": 25.5
+        },
+        {
+          "player_id": "KGA-18",
+          "estimate_kmh": 25.5,
+          "true_kmh": 25.1
+        }
+      ]
+    }
+  },
+  "passes": {
+    "tolerance_s": 1.0,
+    "attempts": {
+      "tp": 9,
+      "predicted": 13,
+      "true": 13,
+      "precision": 0.6923076923076923,
+      "recall": 0.6923076923076923,
+      "f1": 0.6923076923076923
+    },
+    "on_camera": {
+      "tp": 9,
+      "predicted": 13,
+      "true": 13,
+      "precision": 0.6923076923076923,
+      "recall": 0.6923076923076923,
+      "f1": 0.6923076923076923
+    },
+    "ground": {
+      "tp": 9,
+      "predicted": 13,
+      "true": 12,
+      "precision": 0.6923076923076923,
+      "recall": 0.75,
+      "f1": 0.7199999999999999
+    },
+    "completed": {
+      "tp": 5,
+      "predicted": 9,
+      "true": 10,
+      "precision": 0.5555555555555556,
+      "recall": 0.5,
+      "f1": 0.5263157894736842
+    },
+    "outcome_correct": 0.7777777777777778,
+    "team_correct": 0.8888888888888888,
+    "players_correct": 0.6,
+    "speed_mae_kmh": 1.400000000000001,
+    "length_mae_m": 0.7600000000000001,
+    "missed": [
+      {
+        "t": 5706.1,
+        "outcome": "incomplete",
+        "height": "ground",
+        "on_camera": true
+      },
+      {
+        "t": 5730.3,
+        "outcome": "complete",
+        "height": "ground",
+        "on_camera": true
+      },
+      {
+        "t": 5736.2,
+        "outcome": "complete",
+        "height": "high",
+        "on_camera": true
+      },
+      {
+        "t": 5740.0,
+        "outcome": "complete",
+        "height": "ground",
+        "on_camera": true
+      }
+    ]
+  },
+  "examples": [
+    {
+      "t": 5708.86,
+      "true_t": 5708.8,
+      "team": "HBC",
+      "completed": false,
+      "true_outcome": "complete",
+      "passer": "HBC-15",
+      "receiver": "HBC-20",
+      "speed_kmh": 38.3,
+      "true_speed_kmh": 39.7,
+      "length_m": 5.2,
+      "true_length_m": 6.1
+    },
+    {
+      "t": 5711.22,
+      "true_t": 5711.2,
+      "team": "HBC",
+      "completed": false,
+      "true_outcome": "complete",
+      "passer": "HBC-20",
+      "receiver": "HBC-15",
+      "speed_kmh": 40.0,
+      "true_speed_kmh": 39.7,
+      "length_m": 5.8,
+      "true_length_m": 6.2
+    },
+    {
+      "t": 5720.3,
+      "true_t": 5720.3,
+      "team": "HBC",
+      "completed": false,
+      "true_outcome": "intercepted",
+      "passer": "HBC-04",
+      "receiver": null,
+      "speed_kmh": 50.2,
+      "true_speed_kmh": 50.2,
+      "length_m": 5.1,
+      "true_length_m": 25.9
+    },
+    {
+      "t": 5723.02,
+      "true_t": 5723.0,
+      "team": "KGA",
+      "completed": true,
+      "true_outcome": "complete",
+      "passer": "KGA-10",
+      "receiver": "KGA-14",
+      "speed_kmh": 34.9,
+      "true_speed_kmh": 36.9,
+      "length_m": 3.3,
+      "true_length_m": 4.1
+    },
+    {
+      "t": 5724.82,
+      "true_t": 5724.8,
+      "team": "KGA",
+      "completed": true,
+      "true_outcome": "complete",
+      "passer": "KGA-14",
+      "receiver": "KGA-09",
+      "speed_kmh": 56.2,
+      "true_speed_kmh": 55.8,
+      "length_m": 15.4,
+      "true_length_m": 15.9
+    },
+    {
+      "t": 5727.42,
+      "true_t": 5727.4,
+      "team": "KGA",
+      "completed": true,
+      "true_outcome": "complete",
+      "passer": "KGA-09",
+      "receiver": "KGA-06",
+      "speed_kmh": 43.7,
+      "true_speed_kmh": 43.6,
+      "length_m": 7.8,
+      "true_length_m": 8.0
+    }
+  ],
+  "shots": []
+}

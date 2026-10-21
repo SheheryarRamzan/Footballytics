@@ -122,6 +122,48 @@ The evaluation found and fixed a real bug: the first run caught only 67% of fabr
 - The spans go to Application Insights. Bicep connects that resource to the Foundry project (`connections/appinsights`), so every agent run is in **Foundry → Tracing**.
 - Pundit tool calls are traced by Agent Framework function middleware and shown in the UI.
 
+## Auto-eventing: broadcast video → events
+
+The challenge suggests auto-eventing: running a model over a video feed to produce the pass and speed metrics
+automatically. Ours runs against an answer key, because the video is synthetic too.
+
+1. **Video.** A window of a simulated match is rendered as broadcast video by the app's own 3D renderer
+   (`frontend/render.html`, driven headless by Playwright), with the same TV camera fans watch.
+2. **Detection.** A COCO-pretrained Faster R-CNN (torchvision, not fine-tuned) finds the players. It runs a second
+   time on a 2× zoomed window around the ball, because that's where duels merge two players into one box.
+   Near-ball recall rose from 54% to 93% with the zoom.
+3. **Ball.** A classical detector finds the ball, which is only about 10 px on screen. A dynamic-programming search
+   then picks the most plausible path through every frame's candidates.
+4. **Tracking.** Foot points go through the camera's ground-plane homography to pitch coordinates. Teams come from
+   k-means on shirt colour, and Hungarian tracking links the detections.
+5. **Events.** A *flight* is the ball moving faster than a dribble. A flight to a team-mate is a pass and a flight to
+   an opponent is an interception. Speeds come from the smoothed tracks.
+
+![Auto-eventing: team-coloured detections with track ids, the tracked ball, the event ticker and a pitch minimap](docs/images/auto-eventing.png)
+
+Scored against the simulator's own events and tracking, 45 s of Harbour City v Kingsbridge
+([full report](docs/AUTO_EVENTING.md)):
+
+| | Result |
+|---|---|
+| Players found / position error | 85% recall at 92% precision / 0.37 m on the pitch |
+| Pass attempts found | 9 of 13; completed vs intercepted right in 78% of those, passing team in 89% |
+| Pass speed | within 1.4 km/h of the truth on average |
+| Player top speed | within 2.6 km/h, over 22 players |
+| Ball | tracked in 99% of frames where it is on screen and on the ground (median error 0.76 m) |
+
+These are honest numbers, and the report lists the limits:
+- Lofted balls have no ground position.
+- A marker standing in front of the passer hides them from a single camera.
+- The renders are cleaner than real footage.
+
+The Studio shows the latest run (`/api/autoevent`).
+
+```bash
+cd backend && .venv/Scripts/pip install -e ".[vision]" --extra-index-url https://download.pytorch.org/whl/cpu
+.venv/Scripts/python -m footballytics.vision.autoevent --matchday 9 --match HBC-KGA --seconds 45
+```
+
 ## Synthetic data: MatchForge
 
 - **The world:** a fictional 20-club league with 440 players. Attributes, tactical styles and formations shape play; styles include possession, high press, low block and direct.
@@ -158,7 +200,7 @@ cd ../backend && .venv/Scripts/python -m uvicorn footballytics.api.app:app --por
 
 Without Foundry settings, everything except the LLM agents still runs: simulation, stats, moments, Director, overlays and template captions.
 
-**Tests:** `cd backend && .venv/Scripts/python -m pytest -q` runs 31 tests covering the simulator, engine, tools, agent guard rails, personalisation and cloud routing.
+**Tests:** `cd backend && .venv/Scripts/python -m pytest -q` runs 41 tests covering the simulator, engine, tools, agent guard rails, personalisation, cloud routing and the auto-eventing logic.
 
 **Screenshots:** `python tools/screenshots.py --url http://localhost:8000/` drives the real UI with Playwright and Edge, and regenerates `docs/images/`.
 
@@ -178,11 +220,13 @@ backend/footballytics/
   engine/     stats engine: metrics, moments, fantasy ledger, live processor
   agents/     newsroom workflow, prompts, verifier audit, recap, pundit, Foundry clients
   evals/      evaluation harness: planted errors, Azure AI Evaluation judges, quality gates
+  vision/     auto-eventing: clip, render, detect, track, events, evaluate (python -m footballytics.vision.autoevent)
   personal/   fan profiles, Personal Director, Taste Learner, rundown agent, viewer sessions
   intel/      Football Intelligence tools + MCP server
   api/        FastAPI app (REST, WebSocket, MCP, static web app)
   hub.py      live matchday hub;  cloud.py  Event Hubs / Cosmos / telemetry;  archiver.py  worker
-frontend/src/ React + three.js web app (Your Matchday, Match Centre, Studio); pitch/figures.ts = 3D player rigs
+frontend/src/ React + three.js web app (Your Matchday, Match Centre, Studio); pitch/figures.ts = 3D player rigs,
+              pitch/stadium.ts = the shared broadcast scene, render/ + render.html = the offline video renderer
 infra/        Bicep: Foundry (+ App Insights connection), Container Apps, Event Hubs, Cosmos DB, Storage, ACR, monitoring
 tools/        screenshot capture;  .github/workflows/  CI + agent evaluation gates
 docs/         EVALUATION.md (latest run), CONCEPT.md, images/

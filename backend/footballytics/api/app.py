@@ -96,6 +96,15 @@ def evals() -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+@app.get("/api/autoevent")
+def autoevent() -> dict:
+    """Latest auto-eventing run: broadcast video -> events, scored against the simulator's answer key."""
+    path = Path(__file__).resolve().parents[1] / "seed" / "autoevent_latest.json"
+    if not path.exists():
+        raise HTTPException(404, "auto-eventing has not been run yet")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 @app.get("/api/recaps")
 def recaps() -> list[dict]:
     return list(AGENTS.recaps.values())

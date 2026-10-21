@@ -25,8 +25,11 @@ cloud = [
     "azure-eventhub-checkpointstoreblob-aio>=1.2",
     "azure-monitor-opentelemetry>=1.6,<2",
 ]
-dev = ["pytest>=8.3", "ruff>=0.7", "websockets>=13"]
+dev = ["pytest>=8.3", "ruff>=0.7", "websockets>=13", "scipy>=1.13"]
 evals = ["azure-ai-evaluation>=1.10", "playwright>=1.48"]
+# auto-eventing (footballytics.vision); install the CPU torch build: --index-url https://download.pytorch.org/whl/cpu
+vision = ["torch>=2.4", "torchvision>=0.19", "opencv-python-headless>=4.9", "scipy>=1.13", "imageio>=2.34",
+          "imageio-ffmpeg>=0.5", "playwright>=1.48"]
 
 [build-system]
 requires = ["setuptools>=75"]
