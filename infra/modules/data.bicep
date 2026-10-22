@@ -107,15 +107,23 @@ var containerDefs = [
   { name: 'matchdays', pk: '/match_id', ttl: -1 }
 ]
 
+// Events are archived one document per match-minute and only ever read whole, so the event list inside
+// each document is not indexed (indexing every event field was most of the write cost).
+var eventsIndexing = {
+  indexingMode: 'consistent'
+  includedPaths: [ { path: '/*' } ]
+  excludedPaths: [ { path: '/events/*' }, { path: '/"_etag"/?' } ]
+}
+
 resource containers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-11-15' = [for c in containerDefs: {
   parent: db
   name: c.name
   properties: {
-    resource: {
+    resource: union({
       id: c.name
       partitionKey: { paths: [c.pk], kind: 'Hash' }
       defaultTtl: c.ttl
-    }
+    }, c.name == 'events' ? { indexingPolicy: eventsIndexing } : {})
   }
 }]
 

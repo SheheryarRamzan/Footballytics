@@ -2,7 +2,9 @@
 
 Run locally:  uvicorn footballytics.api.app:app --port 8000
 Env:  MATCHDAY (default 9), SPEED sim-seconds per wall-second (default 4), AUTOSTART (default 1),
-      AUTOLOOP (default 0: play one matchday; 1: play matchday after matchday forever)
+      AUTOLOOP (default 0: play one matchday; 1: play matchday after matchday forever),
+      PAUSE_WHEN_IDLE (default 0; 1: pause the live loop after IDLE_PAUSE_S, default 180, with no viewers and no
+      API or MCP requests; the next viewer or request resumes it at once)
       plus the optional Azure settings documented in footballytics/cloud.py
 """
 
@@ -40,6 +42,7 @@ COSMOS = cosmos_from_env()
 FANS = ProfileStore(HUB.league, COSMOS)
 SESSIONS: set[ViewerSession] = set()
 AGENTS.viewers = lambda: len(SESSIONS)
+HUB.audience = lambda: len(SESSIONS)
 EVENTHUB = None
 WEB_DIST = Path(os.getenv("WEB_DIST", Path(__file__).resolve().parents[3] / "frontend" / "dist"))
 
@@ -52,6 +55,9 @@ async def lifespan(app: FastAPI):
     if EVENTHUB is not None:
         HUB.sinks.append(EVENTHUB)
     HUB.load_matchday(int(os.getenv("MATCHDAY", "9")))
+    if os.getenv("PAUSE_WHEN_IDLE", "0") == "1":
+        HUB.idle_after = float(os.getenv("IDLE_PAUSE_S", "180"))
+    HUB.touch()
     speed = float(os.getenv("SPEED", "4"))
     if os.getenv("AUTOSTART", "1") == "1":
         if os.getenv("AUTOLOOP", "0") == "1":
@@ -63,8 +69,22 @@ async def lifespan(app: FastAPI):
     HUB.stop()
 
 
+class WakeOnRequest:
+    """Every API or MCP request (except the health probe) counts as an audience for PAUSE_WHEN_IDLE."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        path = scope.get("path", "")
+        if scope["type"] == "http" and path.startswith(("/api/", "/mcp-server")) and path != "/api/health":
+            HUB.touch()
+        await self.app(scope, receive, send)
+
+
 app = FastAPI(title="Footballytics", version="0.2.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(WakeOnRequest)
 app.mount("/mcp-server", MCP.streamable_http_app())  # MCP endpoint: /mcp-server/mcp
 
 
@@ -95,7 +115,7 @@ def _call(fn, *args, **kwargs):
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "matchday": HUB.matchday, "running": HUB.running, "looping": HUB.looping, "speed": HUB.speed,
-            "controls_locked": controls_locked(), "matches": len(HUB.matches), "moments": len(HUB.moment_log), "viewers": len(SESSIONS),
+            "paused": HUB.paused, "idle_pause_s": HUB.idle_after, "controls_locked": controls_locked(), "matches": len(HUB.matches), "moments": len(HUB.moment_log), "viewers": len(SESSIONS),
             "agents": AGENTS.stats(),
             "cloud": {"telemetry": TELEMETRY, "cosmos": COSMOS is not None,
                       "eventhub": EVENTHUB.stats() if EVENTHUB is not None else None}}
@@ -367,6 +387,7 @@ async def stream(ws: WebSocket) -> None:
     q = HUB.subscribe()
     session = ViewerSession(HUB, FANS, AGENTS)
     SESSIONS.add(session)
+    HUB.touch()
     send_lock = asyncio.Lock()
 
     async def send(msg: dict) -> None:
@@ -407,6 +428,7 @@ async def stream(ws: WebSocket) -> None:
         session.close()
         SESSIONS.discard(session)
         HUB.unsubscribe(q)
+        HUB.touch()  # the idle countdown starts when the last viewer leaves
 
 
 # ----------------------------------------------------------------------------- web app

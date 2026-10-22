@@ -118,6 +118,7 @@ module apps 'modules/apps.bicep' = if (deployApps) {
       { name: 'AUTOLOOP', value: '1' }
       { name: 'TRACE_CONTENT', value: '1' } // synthetic data: include prompts/outputs in Foundry traces
       { name: 'PUBLIC_DEMO', value: '1' } // one shared live matchday: Studio restart/speed are read-only in public
+      { name: 'PAUSE_WHEN_IDLE', value: '1' } // no viewers or requests for 3 min: the matchday waits (and costs nothing)
       { name: 'SPEED', value: speed }
       { name: 'MATCHDAY', value: '9' }
     ]

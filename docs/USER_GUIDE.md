@@ -11,6 +11,8 @@ why they matter, in your language and at your depth.
 
 Matchdays play on a loop at 4× speed, so a match is always live. A full match takes about 25 minutes.
 
+To save cost, the live matchday pauses when nobody has had the page open for 3 minutes. It picks up where it stopped as soon as someone opens it.
+
 ---
 
 ## The 2-minute tour (for judges)

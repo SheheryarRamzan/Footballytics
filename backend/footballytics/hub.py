@@ -102,6 +102,12 @@ class LiveHub:
         self.looping = False
         self.loaded_at = time.time()
         self._task: asyncio.Task | None = None
+        # Pause when nobody is watching: no simulation, stream traffic, archive writes or model calls.
+        self.idle_after: float | None = None  # seconds without an audience before pausing (None: never pause)
+        self.audience: Callable[[], int] = lambda: 0  # connected viewers (wired up by the API)
+        self.paused = False
+        self._last_seen = time.monotonic()
+        self._wake: asyncio.Event | None = None
 
     # ------------------------------------------------------------- setup
     def load_matchday(self, matchday: int) -> list[str]:
@@ -137,6 +143,31 @@ class LiveHub:
             except Exception:  # a failing sink must never stop the live loop
                 log.exception("sink failed")
 
+    # ------------------------------------------------------------- audience
+    def touch(self) -> None:
+        """Someone is watching or asking: keep the matchday live, and resume it at once if it was paused."""
+        self._last_seen = time.monotonic()
+        if self._wake is not None:
+            self._wake.set()
+
+    def idle(self) -> bool:
+        return (self.idle_after is not None and self.audience() == 0
+                and time.monotonic() - self._last_seen > self.idle_after)
+
+    async def _hold_while_idle(self) -> None:
+        self.paused = True
+        self._wake = asyncio.Event()
+        log.info("nobody watching for %.0f s: matchday %s paused", self.idle_after, self.matchday)
+        try:
+            while self.running and self.idle():
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(self._wake.wait(), timeout=5)  # the timeout keeps stop() responsive
+                self._wake.clear()
+        finally:
+            self.paused = False
+            self._wake = None
+        log.info("audience back: matchday %s resumed", self.matchday)
+
     # ------------------------------------------------------------- live loop
     def start(self, speed: float = 6.0) -> asyncio.Task:
         self.speed = speed
@@ -152,6 +183,10 @@ class LiveHub:
         next_t = loop.time()
         try:
             while self.running and any(not m.done for m in self.matches.values()):
+                if self.idle():
+                    await self._hold_while_idle()
+                    next_t = loop.time()  # resume from where play stopped, without catching up
+                    continue
                 for m in self.matches.values():
                     if m.done:
                         continue

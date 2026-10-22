@@ -74,11 +74,13 @@ GitHub Copilot agent mode, Claude or a Foundry agent can query the live matchday
 
 - **One image, two Container Apps.**
   - The **api** app runs the web app, REST, WebSocket and MCP, plus the live hub, the newsroom and one Personal Director per viewer.
-  - The **archiver** consumes the Event Hubs stream (Blob checkpoints) and writes to **Cosmos DB** (serverless).
+  - The **archiver** consumes the Event Hubs stream (Blob checkpoints) and writes to **Cosmos DB** (serverless). Match events are stored one document per match-minute, so a match costs about 100 writes rather than one per event.
 - **Keyless everywhere.** One user-assigned managed identity holds the Foundry, Event Hubs, Cosmos DB, Storage and ACR roles. Local auth is disabled on every service.
 - **Observability.** OpenTelemetry from the app and from Agent Framework flows to **Application Insights**. That resource is connected to the Foundry project, so agent traces also appear under Foundry **Tracing** (see [below](#quality-automated-evaluation-and-foundry-tracing)).
 - **Always live:** matchdays loop, so judges always land on football in progress. Results fold into an evolving league table.
-- **Cost-aware:** agents only spend tokens while someone is watching.
+- **Cost-aware:**
+  - Agents only spend tokens while someone is watching.
+  - When nobody has watched or called the API for 3 minutes, the live matchday pauses: no simulation, streaming, archive writes or model calls. The next visitor resumes it straight away.
 
 ## Quality: automated evaluation and Foundry tracing
 
