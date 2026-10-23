@@ -134,7 +134,7 @@ The live **Studio** shows the latest gates (`/api/evals`).
 
 **CI** (`.github/workflows/`):
 - `ci.yml` runs the tests, the realism scorecard and the frontend build on every push.
-- `evals.yml` runs the evaluation nightly, and on any pull request that touches the agents. It signs in to Azure through OIDC (no secrets), fails the build if a gate regresses, and uploads the report.
+- `evals.yml` runs the evaluation when started by hand, because every run spends Foundry credit on the AI judges. It signs in to Azure through OIDC (no secrets), fails the build if a gate regresses, and uploads the report.
 
 **Tracing.**
 - `enable_instrumentation()` turns on Agent Framework's OpenTelemetry spans: `workflow.run`, one `executor.process` per newsroom step, `invoke_agent` and `chat gpt-5-mini`, with token usage.

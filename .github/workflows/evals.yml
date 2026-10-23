@@ -1,13 +1,10 @@
 # Agent quality gates: runs the newsroom against Microsoft Foundry and fails if quality regresses.
 # Setup: an Entra app with a federated credential for this repo (OIDC) holding the "Foundry User",
 # "Cognitive Services OpenAI User" roles on the Foundry account; repo variables below.
+# Manual only (Actions > agent-evals > Run workflow): every run spends Foundry credit on the AI judges.
 name: agent-evals
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 6 * * *"
-  pull_request:
-    paths: ["backend/footballytics/agents/**", "backend/footballytics/evals/**"]
 
 permissions:
   id-token: write
