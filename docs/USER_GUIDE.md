@@ -29,6 +29,7 @@ To save cost, the live matchday pauses when nobody has had the page open for 3 m
 5. **Change the audience.** At the top right, switch to **Analyst**, then **Kids**, then choose **اردو** (Urdu) in
    the language menu. The same moments are rewritten for each audience, and the layout flips right-to-left.
 6. **Look behind the scenes.** Open **Studio** to see:
+   - **Try a wrong number:** change a number in a published item and watch the Verifier reject it;
    - the agent trace for every item, with each claim checked against live data;
    - the automated quality gates;
    - the auto-eventing results (players and passes recovered from broadcast video).
@@ -154,6 +155,7 @@ An analyst desk for the match on stage. It has the same stage, view controls and
 | **Newsroom** | Verified items, items corrected by the Verifier, agent latency (p50/p95), viewers and languages on air. |
 | **Sim speed ×2 / ×4 / ×8** | Changes the simulation speed. 🔒 **Locked on the public demo**: there is one live matchday for every viewer, so the buttons are greyed out there. They work when you run the app locally. |
 | **Restart matchday** | Restarts the current matchday from kick-off. 🔒 Locked on the public demo for the same reason; available locally. |
+| **Try a wrong number** | Pick a published item and change any number: a claim's value, or a number in the headline or text. **Run the Verifier** checks it with the same code that gates every broadcast, against the data it saw when the item was published. **Inflate a stat by 50%** and **Invent a number** plant an error in one click. You see each claim's true value, the numbers with no evidence, and the exact feedback the Analyst would get. Nothing you type goes on air. Direct link: `/#try-a-wrong-number`. |
 | **MCP: …/mcp-server/mcp** | The live MCP endpoint. Connect GitHub Copilot, Claude or any MCP client to query the matchday. |
 | **Quality gates · automated evaluation** | The latest automated evaluation of the agent newsroom: claim accuracy, planted wrong stats caught, invented stats caught, AI-judge scores and content safety. **Open the run in Microsoft Foundry →** opens it (needs access to our Azure tenant). |
 | **Auto-eventing · broadcast video → events** | Players, ball, passes and speeds recovered from rendered broadcast video by a vision pipeline, and scored against the simulator's answer key. See [AUTO_EVENTING.md](AUTO_EVENTING.md). |

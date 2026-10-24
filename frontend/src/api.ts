@@ -1,4 +1,4 @@
-import type { Club, Fan, FocusMetric, Leaders, MatchState, Mode } from "./types";
+import type { BroadcastItem, Club, Fan, FocusMetric, Leaders, MatchState, Mode, VerifierItem, VerifierResult } from "./types";
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -36,4 +36,13 @@ export const api = {
   restart: (matchday: number, speed: number) =>
     req<any>(`/api/admin/restart?matchday=${matchday}&speed=${speed}`, { method: "POST" }),
   speed: (speed: number) => req<any>(`/api/admin/speed?speed=${speed}`, { method: "POST" }),
+  broadcast: (limit = 40) => req<BroadcastItem[]>(`/api/broadcast?limit=${limit}`),
+  verifierItems: () => req<VerifierItem[]>("/api/verifier/items"),
+  verifierTry: (body: {
+    item_id: string;
+    headline: string;
+    why_it_matters: string;
+    tactical_angle: string | null;
+    claims: { subject_id: string; metric: string; value: number }[];
+  }) => req<VerifierResult>("/api/verifier/try", { method: "POST", body: JSON.stringify(body) }),
 };

@@ -1,7 +1,231 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { usePoll } from "../hooks";
 import { useStore } from "../store";
+import type { VerifierItem, VerifierResult } from "../types";
+
+type Draft = { headline: string; why: string; tactical: string; values: string[] };
+
+const toDraft = (it: VerifierItem): Draft => ({
+  headline: it.insight.headline,
+  why: it.insight.why_it_matters,
+  tactical: it.insight.tactical_angle ?? "",
+  values: it.claims.map((c) => String(c.value)),
+});
+
+/** Inflate a stat by half, keeping its precision (0.34 -> 0.51, 212 -> 318). */
+const inflate = (v: string) => {
+  const n = Number(v);
+  const decimals = (v.split(".")[1] ?? "").length;
+  return (n === 0 ? 1 : n * 1.5).toFixed(decimals);
+};
+
+/** Try a wrong number: edit a published item and run the same Verifier that gates every broadcast. */
+function TryWrongNumber() {
+  const [items, setItems] = useState<VerifierItem[] | null>(null);
+  const [pick, setPick] = useState("");
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [result, setResult] = useState<VerifierResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      api
+        .verifierItems()
+        .then((l) => alive && setItems(l))
+        .catch(() => alive && setItems((prev) => prev ?? []));
+    load();
+    const t = setInterval(load, 20_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
+  useEffect(() => {
+    if (location.hash === "#try-a-wrong-number") ref.current?.scrollIntoView({ block: "start" });
+  }, []);
+  // Pin the item being edited, so a newer item never replaces it mid-edit (re-pick only if it expired).
+  useEffect(() => {
+    if (items?.length && !items.some((i) => i.item_id === pick)) {
+      setPick((items.find((i) => i.claims.length) ?? items[0]).item_id);
+    }
+  }, [items, pick]);
+
+  const item = items?.find((i) => i.item_id === pick);
+  useEffect(() => {
+    if (item) setDraft(toDraft(item));
+    setResult(null);
+    setError(null);
+  }, [item?.item_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const run = async (d: Draft) => {
+    if (!item) return;
+    setDraft(d);
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(
+        await api.verifierTry({
+          item_id: item.item_id,
+          headline: d.headline,
+          why_it_matters: d.why,
+          tactical_angle: d.tactical || null,
+          claims: item.claims.map((c, i) => ({ subject_id: c.subject_id, metric: c.metric, value: Number(d.values[i]) })),
+        }),
+      );
+    } catch (e) {
+      setError(String(e).includes("404") ? "That item has expired: pick a newer one." : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="panel studio-try" id="try-a-wrong-number" ref={ref}>
+      <h2>
+        Try a wrong number
+        <span className="badge verified">same Verifier as on air</span>
+      </h2>
+      <p className="muted small">
+        Change any number in a published item, or add one, and run the Verifier that gates every broadcast. It checks
+        claims against the values it read when the item was published, and every number in the text against the
+        evidence. Nothing you type goes on air.
+      </p>
+      {!items && <p className="muted">Loading…</p>}
+      {items && !items.length && (
+        <p className="muted">
+          Waiting for the first verified item. The newsroom writes one for each big moment while someone is watching,
+          usually within a minute or two.
+        </p>
+      )}
+      {item && draft && (
+        <div className="try-grid">
+          <div className="try-form">
+            <label>
+              Published item
+              <select value={item.item_id} onChange={(e) => setPick(e.target.value)}>
+                {items!.map((i) => (
+                  <option key={i.item_id} value={i.item_id}>
+                    {i.match_id.replace(/^md\d+-/, "")} {i.minute}' · {i.insight.headline}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Headline
+              <input value={draft.headline} onChange={(e) => setDraft({ ...draft, headline: e.target.value })} />
+            </label>
+            <label>
+              Why it matters
+              <textarea rows={3} value={draft.why} onChange={(e) => setDraft({ ...draft, why: e.target.value })} />
+            </label>
+            {item.claims.length > 0 && (
+              <table className="claims try-claims">
+                <thead>
+                  <tr>
+                    <th>Claim</th>
+                    <th>Value</th>
+                    <th className="muted">Published</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {item.claims.map((c, i) => (
+                    <tr key={i}>
+                      <td>
+                        {c.name ?? c.subject_id} · {c.metric}
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          step="any"
+                          aria-label={`${c.name ?? c.subject_id} ${c.metric}`}
+                          value={draft.values[i]}
+                          onChange={(e) =>
+                            setDraft({ ...draft, values: draft.values.map((v, j) => (j === i ? e.target.value : v)) })
+                          }
+                        />
+                      </td>
+                      <td className="muted">{c.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <div className="try-actions">
+              {item.claims.length > 0 && (
+                <button className="btn small ghost" disabled={busy} onClick={() => run({ ...draft, values: [inflate(draft.values[0]), ...draft.values.slice(1)] })}>
+                  Inflate a stat by 50%
+                </button>
+              )}
+              <button
+                className="btn small ghost"
+                disabled={busy}
+                onClick={() => run(draft.why.includes(item.invent) ? draft : { ...draft, why: `${draft.why.trim()} ${item.invent}` })}
+              >
+                Invent a number
+              </button>
+              <button className="btn small ghost" disabled={busy} onClick={() => run(toDraft(item))}>
+                Reset to published
+              </button>
+              <button className="btn small" disabled={busy} onClick={() => run(draft)}>
+                {busy ? "Checking…" : "Run the Verifier"}
+              </button>
+            </div>
+          </div>
+          <div className="try-result" aria-live="polite">
+            {error && <p className="error">{error}</p>}
+            {!result && !error && (
+              <p className="muted">Edit a number, or use a button on the left, then run the Verifier.</p>
+            )}
+            {result && (
+              <>
+                <div className={`try-verdict ${result.verdict}`}>
+                  {result.verdict === "rejected" ? "✗ Rejected by the Verifier" : "✓ Passed the Verifier"}
+                </div>
+                {result.checks.length > 0 && (
+                  <table className="claims">
+                    <tbody>
+                      {result.checks.map((c, i) => (
+                        <tr key={i}>
+                          <td>{c.ok ? "✓" : "✗"}</td>
+                          <td>
+                            {c.name ?? c.subject_id} · {c.metric}
+                          </td>
+                          <td>{c.value}</td>
+                          <td className="muted">
+                            {c.actual == null ? c.reason : `true value ${c.actual} (±${c.tolerance})`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {result.unsupported_numbers.length > 0 && (
+                  <p>
+                    Numbers in the text with no evidence:{" "}
+                    {result.unsupported_numbers.map((n) => (
+                      <span key={n} className="num-chip">{n}</span>
+                    ))}
+                  </p>
+                )}
+                {result.problems.length > 0 && (
+                  <>
+                    <h3>Feedback sent to the Analyst</h3>
+                    <div className="try-feedback">{result.problems.join("\n")}</div>
+                  </>
+                )}
+                <p className="muted small">{result.next}</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 /** Producer console: the agent newsroom's work, machine-readable overlay cues, health and controls. */
 function Quality() {
@@ -96,6 +320,15 @@ export function Studio() {
   const sel = selected ? items[selected] : list[0];
   const agents = health?.agents;
   const locked = !!health?.controls_locked;
+  // Items published before this page opened (the live stream only carries new ones).
+  useEffect(() => {
+    api
+      .broadcast()
+      .then((past) =>
+        useStore.setState((st) => ({ items: { ...Object.fromEntries(past.map((it) => [it.moment_id, it])), ...st.items } })),
+      )
+      .catch(() => {});
+  }, []);
   return (
     <div className="studio">
       <section className="panel studio-stats">
@@ -124,6 +357,7 @@ export function Studio() {
           <code className="mcp" title="Connect GitHub Copilot, Claude or any MCP client">MCP: {location.origin}/mcp-server/mcp</code>
         </div>
       </section>
+      <TryWrongNumber />
       <Quality />
       <AutoEventing />
       <section className="panel studio-list">

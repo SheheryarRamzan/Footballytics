@@ -13,6 +13,31 @@ Built for the **Microsoft × Premier League "Inside the Game" Developer Hackatho
 
 ![Your Matchday: the Personal Director cuts to a penalty in another match because it involves the fan's squad; every card is verified and explains why it was shown](docs/images/matchday.png)
 
+## Judge it in 3 minutes
+
+No login and no install: each step uses the [live demo](https://ca-fbx-api-5dn4hvp4.jollysmoke-ceff9f6d.eastus2.azurecontainerapps.io).
+
+| When | Do this | What it shows |
+|---|---|---|
+| 0:00 | Open the [live demo](https://ca-fbx-api-5dn4hvp4.jollysmoke-ceff9f6d.eastus2.azurecontainerapps.io). Pick a club, how you like to watch and one stat to follow, then press **Start my matchday**. | Ten synthetic matches live at once, and a fantasy squad built for you. |
+| 0:30 | Watch for a minute. | The **Personal Director** cuts to another match when something involves your squad and uses picture-in-picture for smaller moments. Every card answers *why am I seeing this?* |
+| 1:15 | Tap a player in **Your squad**. | **Player Cam** switches to their match and follows them. |
+| 1:45 | Open **[Try a wrong number](https://ca-fbx-api-5dn4hvp4.jollysmoke-ceff9f6d.eastus2.azurecontainerapps.io/#try-a-wrong-number)** in Studio. Press **Inflate a stat by 50%**, then **Invent a number**. | The same Verifier that gates every broadcast rejects both, and shows the exact feedback the Analyst gets. Edit any number yourself and run it again. |
+| 2:30 | Scroll through Studio. | The quality gates, the full agent trace of any item, and the auto-eventing results. |
+| 2:50 | Switch the language to **اردو** or **العربية**. | The layout flips right-to-left, and new stories arrive written natively in that language. |
+
+If nobody has visited for a few minutes, the matchday is paused to save cost. It resumes as soon as the page opens.
+
+**Where to find the evidence for each judging criterion**
+
+| Criterion | Evidence |
+|---|---|
+| Technological implementation | [MatchForge](#synthetic-data-matchforge) passes 15/15 real-world benchmarks; a deterministic stats engine; backend tests and CI; Bicep + azd; keyless managed identity ([architecture](#architecture-azure)). |
+| Agentic design and innovation | An [Agent Framework newsroom](#the-agents-microsoft-agent-framework--microsoft-foundry) with a Verifier loop that sends wrong claims back; a Personal Director and Taste Learner per fan; a [Football Intelligence MCP server](#football-intelligence-mcp-server); the live wrong-number test above. |
+| Real-world impact | One broadcast per fan across ten simultaneous matches; fan, analyst, kids and audio-description audiences; seven languages, including right-to-left; [measured trust](#quality-automated-evaluation-and-foundry-tracing); the matchday pauses when nobody is watching. |
+| User experience and presentation | The demo video, the [live app](https://ca-fbx-api-5dn4hvp4.jollysmoke-ceff9f6d.eastus2.azurecontainerapps.io) and the [user guide](docs/USER_GUIDE.md). |
+| Microsoft Foundry | gpt-5-mini, gpt-4.1-mini and gpt-4o-mini-tts deployments; every agent run in **Foundry Tracing**; the evaluation logged to **Foundry Evaluations**. |
+
 ---
 
 ## What it does: one pipeline, five stages
@@ -84,7 +109,7 @@ GitHub Copilot agent mode, Claude or a Foundry agent can query the live matchday
 
 ## Quality: automated evaluation and Foundry tracing
 
-Every number a fan hears has to be true. That claim is **measured on every change**, not assumed.
+Every number a fan hears has to be true. That claim is **measured**, not assumed, and you can [test it yourself](https://ca-fbx-api-5dn4hvp4.jollysmoke-ceff9f6d.eastus2.azurecontainerapps.io/#try-a-wrong-number).
 
 ```bash
 cd backend && .venv/Scripts/pip install -e ".[evals]"
@@ -130,7 +155,7 @@ Latest run ([full report](docs/EVALUATION.md), [Foundry run](https://ai.azure.co
 - A correct number credited to the wrong player in the prose (as opposed to in a claim) isn't caught.
 - Statements without numbers are judged only by the AI judge.
 
-The live **Studio** shows the latest gates (`/api/evals`).
+The live **Studio** shows the latest gates (`/api/evals`). Its **Try a wrong number** panel runs the same Verifier on an edited copy of any published item, checked against the data it saw at the time (`/api/verifier/try`).
 
 **CI** (`.github/workflows/`):
 - `ci.yml` runs the tests, the realism scorecard and the frontend build on every push.
@@ -255,7 +280,7 @@ docs/         EVALUATION.md (latest run), CONCEPT.md, images/
 
 - **Synthetic data only;** every club and player is fictional.
 - **Numbers are verified:** each claim is checked against data, and numbers that can't be traced are rejected or replaced by deterministic text.
-- **Continuously evaluated:** planted-error tests, AI judges and content-safety evaluators gate every change to the agents ([report](docs/EVALUATION.md)).
+- **Evaluated before release:** planted-error tests, AI judges and content-safety evaluators gate changes to the agents ([report](docs/EVALUATION.md)).
 - **Your language from the first second:** before the agents' text arrives, instant graphics show translated labels with names and numbers, never English filler.
 - **Explained personalization:** every cut and card carries its reasons, and the Taste Learner says what it learned.
 - **Accessibility:** audio-description mode, right-to-left layouts for Arabic and Urdu, kids mode, and reduced-motion support.

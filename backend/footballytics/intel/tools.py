@@ -38,6 +38,9 @@ def _name(pid: str | None) -> str | None:
     return p.name if p else hub().league.clubs[pid].name if pid in hub().league.clubs else pid
 
 
+display_name = _name  # player or club id -> name (falls back to the id)
+
+
 def _round(v: Any) -> Any:
     if isinstance(v, float | np.floating):
         return round(float(v), 3)
@@ -188,10 +191,15 @@ def verify_claims(match_id: Annotated[str, "Match id"],
         if actual is None or value is None:
             results.append({**c, "ok": False, "actual": actual, "reason": "unknown subject or metric"})
             continue
-        tol = max(0.05 * abs(actual), 0.02 if isinstance(actual, float) and actual < 1.5 else 0.5)
-        ok = bool(math.isclose(float(value), float(actual), abs_tol=float(tol)))
-        results.append({**c, "ok": ok, "actual": _round(actual), "tolerance": round(float(tol), 3)})
+        results.append(check_value(c, actual))
     return results
+
+
+def check_value(claim: dict, actual: float) -> dict:
+    """One claim against its true value: within 5%, or 0.02 for small decimals / 0.5 for counts."""
+    tol = max(0.05 * abs(actual), 0.02 if isinstance(actual, float) and actual < 1.5 else 0.5)
+    ok = bool(math.isclose(float(claim["value"]), float(actual), abs_tol=float(tol)))
+    return {**claim, "ok": ok, "actual": _round(actual), "tolerance": round(float(tol), 3)}
 
 
 def get_pitch_control(match_id: Annotated[str, "Match id"]) -> dict:

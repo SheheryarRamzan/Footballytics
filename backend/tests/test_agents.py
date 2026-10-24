@@ -7,7 +7,18 @@ import numpy as np
 import pytest
 
 from footballytics.agents.audit import numbers_in, unsupported_numbers
-from footballytics.agents.newsroom import NewsTask, check_moment_facts, short_label, template_item
+from footballytics.agents.newsroom import (
+    NewsTask,
+    build_context,
+    check_moment_facts,
+    checks_as_published,
+    invented_sentence,
+    review,
+    short_label,
+    template_item,
+    try_verifier,
+)
+from footballytics.agents.schemas import Claim, Insight
 from footballytics.hub import LiveHub
 from footballytics.intel import tools
 from footballytics.jsonutil import dumps, to_jsonable
@@ -87,3 +98,71 @@ def test_every_tool_returns_json(live_hub):
                 tools.get_events(mid, limit=5), tools.get_pitch_control(mid), tools.fantasy_points(mid),
                 tools.league_table()):
         json.dumps(to_jsonable(out))
+
+
+def _published(live_hub):
+    """A verified item as the newsroom would publish it, built from live data without a model."""
+    m = max(live_hub.moment_log, key=lambda m: m.importance).to_dict()
+    ctx = build_context(m)
+    home = live_hub.match(m["match_id"]).meta["home"]
+    passes = live_hub.match(m["match_id"]).proc.teams[home].passes
+    ins = Insight(headline="A moment that changes the match",
+                  why_it_matters=f"{ctx['names'][home]} have strung together {passes} passes.",
+                  claims=[Claim(subject_id=home, metric="passes", value=passes)])
+    checks, problems = review(NewsTask(m, ctx, ["en"]), ins)
+    assert problems == []
+    record = to_jsonable({"moment": m, "context": ctx, "claims": checks})
+    return record, ins, home, passes
+
+
+def test_try_a_wrong_number_runs_the_real_verifier(live_hub):
+    record, ins, home, passes = _published(live_hub)
+
+    def attempt(why=ins.why_it_matters, value=passes, headline=ins.headline):
+        return try_verifier(record, headline, why, None, [{"subject_id": home, "metric": "passes", "value": value}])
+
+    assert attempt()["verdict"] == "passed"  # the published item, untouched: no false alarm
+    assert attempt(value=passes + 1)["verdict"] == "passed"  # within tolerance
+    wrong = attempt(value=round(passes * 1.5))
+    assert wrong["verdict"] == "rejected" and f"the live value is {passes}" in wrong["problems"][0]
+    assert wrong["checks"][0]["name"] and "Analyst" in wrong["next"]
+    invented = attempt(headline="A 93.7 km/h run changes the match")
+    assert invented["verdict"] == "rejected" and invented["unsupported_numbers"] == ["93.7"]
+    button = attempt(why=ins.why_it_matters + " " + invented_sentence(record))  # the "invent a number" button
+    assert button["verdict"] == "rejected" and len(button["unsupported_numbers"]) == 1
+
+
+def test_claims_are_rechecked_against_the_values_seen_at_publication():
+    check = checks_as_published([{"subject_id": "RIV", "metric": "passes", "value": 212, "actual": 212},
+                                 {"subject_id": "RIV-09", "metric": "xg", "value": 0.34, "actual": 0.34}])
+    res = check([{"subject_id": "RIV", "metric": "passes", "value": 212},
+                 {"subject_id": "RIV-09", "metric": "xg", "value": 0.51},
+                 {"subject_id": "RIV-09", "metric": "made_up", "value": 1}])
+    assert [r["ok"] for r in res] == [True, False, False]
+    assert res[1]["actual"] == 0.34 and res[2]["reason"] == "unknown subject or metric"
+
+
+def test_try_a_wrong_number_api(live_hub):
+    from fastapi.testclient import TestClient
+
+    from footballytics.api import app as api
+
+    record, ins, home, passes = _published(live_hub)
+    item = {"item_id": "bi-test", "match_id": record["moment"]["match_id"], "minute": record["moment"]["minute"],
+            "kind": record["moment"]["kind"], "status": "verified",
+            "insight": {"headline": ins.headline, "why_it_matters": ins.why_it_matters, "tactical_angle": None},
+            "claims": record["claims"]}
+    api.AGENTS.remember(item, record["context"], record["moment"])
+    try:
+        client = TestClient(api.app)  # no `with`: the live matchday does not start
+        listed = client.get("/api/verifier/items").json()
+        assert listed[0]["item_id"] == "bi-test" and listed[0]["claims"][0]["actual"] == passes
+        assert "km/h" in listed[0]["invent"]
+        body = {"item_id": "bi-test", "headline": ins.headline, "why_it_matters": ins.why_it_matters,
+                "claims": [{"subject_id": home, "metric": "passes", "value": passes * 2}]}
+        r = client.post("/api/verifier/try", json=body)
+        assert r.status_code == 200 and r.json()["verdict"] == "rejected"
+        assert client.post("/api/verifier/try", json={**body, "item_id": "bi-gone"}).status_code == 404
+        assert client.post("/api/verifier/try", json={**body, "claims": body["claims"] * 13}).status_code == 422
+    finally:
+        api.AGENTS.verified_against.pop("bi-test", None)

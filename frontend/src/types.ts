@@ -222,3 +222,34 @@ export interface WireEvent {
   end_y: number | null;
   qualifiers: Record<string, any>;
 }
+
+export interface VerifierClaim {
+  subject_id: string;
+  metric: string;
+  value: number;
+  actual: number | null;
+  tolerance?: number | null;
+  name?: string | null;
+  ok?: boolean;
+  reason?: string;
+}
+
+/** A published item the Verifier can re-check ("try a wrong number"). */
+export interface VerifierItem {
+  item_id: string;
+  match_id: string;
+  minute: number;
+  kind: string;
+  status: string;
+  insight: { headline: string; why_it_matters: string; tactical_angle: string | null };
+  claims: VerifierClaim[];
+  invent: string;
+}
+
+export interface VerifierResult {
+  verdict: "passed" | "rejected";
+  problems: string[];
+  unsupported_numbers: string[];
+  checks: VerifierClaim[];
+  next: string;
+}

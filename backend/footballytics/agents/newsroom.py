@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,7 +34,7 @@ from ..intel import tools
 from . import prompts
 from .audit import numbers_in, unsupported_numbers
 from .clients import chat_client
-from .schemas import Insight, Renditions
+from .schemas import Claim, Insight, Renditions
 
 log = logging.getLogger("footballytics.newsroom")
 MAX_ATTEMPTS = 3
@@ -351,13 +352,15 @@ def build_context(m: dict) -> dict:
             "names": names}
 
 
-def review(task: NewsTask, ins: Insight) -> tuple[list[dict], list[str]]:
-    """The Verifier's checks as a pure function (also used by the evaluation suite):
+def review(task: NewsTask, ins: Insight,
+           check_live: Callable[[list[dict]], list[dict]] | None = None) -> tuple[list[dict], list[str]]:
+    """The Verifier's checks as a pure function (also used by the evaluation suite and "try a wrong number"):
     every claim against live data / moment facts, and every number in the prose against the evidence."""
     moment_ids = {"moment", task.moment["moment_id"]}
     own = [c.model_dump() for c in ins.claims if c.subject_id in moment_ids]
     live = [c.model_dump() for c in ins.claims if c.subject_id not in moment_ids]
-    checks = tools.verify_claims(task.moment["match_id"], live) + check_moment_facts(task, own)
+    check_live = check_live or (lambda claims: tools.verify_claims(task.moment["match_id"], claims))
+    checks = check_live(live) + check_moment_facts(task, own)
     problems = []
     for c in checks:
         if not c["ok"]:
@@ -367,13 +370,65 @@ def review(task: NewsTask, ins: Insight) -> tuple[list[dict], list[str]]:
             else:
                 problems.append(f"Claim {c['subject_id']}.{c['metric']}={c['value']} is wrong: the live value "
                                 f"is {c['actual']}. Correct the text and the claim.")
-    verified_values = [c["actual"] for c in checks if c["ok"]]
-    texts = [ins.headline, ins.why_it_matters, ins.tactical_angle or ""]
-    bad_numbers = unsupported_numbers(texts, [task.context, verified_values], always_ok=[task.moment["minute"]])
+    bad_numbers = unsupported_in_prose(task, ins, checks)
     if bad_numbers:
         problems.append(f"These numbers are not supported by the evidence: {', '.join(bad_numbers)}. "
                         f"Use only numbers from the context, or remove them.")
     return checks, problems
+
+
+def unsupported_in_prose(task: NewsTask, ins: Insight, checks: list[dict]) -> list[str]:
+    verified_values = [c["actual"] for c in checks if c["ok"]]
+    texts = [ins.headline, ins.why_it_matters, ins.tactical_angle or ""]
+    return unsupported_numbers(texts, [task.context, verified_values], always_ok=[task.moment["minute"]])
+
+
+def checks_as_published(published: list[dict]) -> Callable[[list[dict]], list[dict]]:
+    """Check live-data claims against the values the Verifier read when the item was published.
+
+    Live statistics keep moving, so re-reading them minutes later would fault numbers that were right on air.
+    """
+    seen = {(c["subject_id"], c["metric"]): c["actual"] for c in published if c.get("actual") is not None}
+
+    def check(claims: list[dict]) -> list[dict]:
+        out = []
+        for c in claims:
+            actual = seen.get((c["subject_id"], c["metric"]))
+            out.append(tools.check_value(c, actual) if actual is not None
+                       else {**c, "ok": False, "actual": None, "reason": "unknown subject or metric"})
+        return out
+
+    return check
+
+
+def subject_name(record: dict, subject_id: str) -> str | None:
+    if subject_id in ("moment", record["moment"]["moment_id"]):
+        return "this moment"
+    name = record["context"].get("names", {}).get(subject_id)
+    return name if name and name != subject_id else tools.display_name(subject_id)
+
+
+def invented_sentence(record: dict) -> str:
+    """A plausible sentence whose number the item's evidence cannot support (the "invent a number" button)."""
+    evidence = [record["context"], [c.get("actual") for c in record["claims"]]]
+    x = next((x for x in ("37.9", "36.4", "38.6", "35.2", "39.1") if unsupported_numbers([x], evidence)), "97.3")
+    return f"The decisive run was clocked at {x} km/h."
+
+
+def try_verifier(record: dict, headline: str, why_it_matters: str, tactical_angle: str | None,
+                 claims: list[dict]) -> dict:
+    """Run the Verifier on an edited copy of a published item ("try a wrong number"): the same review() that gates
+    every broadcast item, against the evidence it had at the time. Nothing here goes on air."""
+    task = NewsTask(record["moment"], record["context"], ["en"])
+    ins = Insight(headline=headline, why_it_matters=why_it_matters, tactical_angle=tactical_angle or None,
+                  claims=[Claim(**c) for c in claims])
+    checks, problems = review(task, ins, check_live=checks_as_published(record["claims"]))
+    return {"verdict": "rejected" if problems else "passed", "problems": problems,
+            "unsupported_numbers": unsupported_in_prose(task, ins, checks),
+            "checks": [{**c, "name": subject_name(record, c["subject_id"])} for c in checks],
+            "next": (f"Sent back to the Analyst with this feedback for a rewrite (up to {MAX_ATTEMPTS} attempts). "
+                     "If it still fails, the claims are dropped and only the deterministic explanation goes on air."
+                     if problems else "Passed: on to the Host, who writes it for every audience and language.")}
 
 
 def check_moment_facts(task: NewsTask, claims: list[dict]) -> list[dict]:

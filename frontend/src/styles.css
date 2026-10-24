@@ -327,6 +327,26 @@ table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
 .trace .ms { float: inline-end; color: var(--muted); font-size: 12px; }
 .trace .issue { color: #fca5a5; font-size: 12px; margin-top: 3px; }
 .claims td { padding: 3px 6px; border-bottom: 1px solid var(--line); }
+.studio-try { grid-column: 1 / -1; scroll-margin-top: 64px; }
+.try-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; }
+.try-form label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.try-form input, .try-form textarea, .try-form select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 8px; font: inherit; font-size: 13px; min-width: 0;
+}
+.try-form textarea { resize: vertical; }
+.try-claims th { text-align: start; font-size: 11px; font-weight: 600; color: var(--muted); padding: 3px 6px; }
+.try-claims input { width: 100px; }
+.try-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.try-result h3 { margin: 12px 0 6px; font-size: 13px; }
+.try-verdict { border-radius: 10px; padding: 9px 12px; font-weight: 800; margin-bottom: 8px; }
+.try-verdict.rejected { background: rgba(248, 113, 113, 0.12); color: var(--danger); border: 1px solid rgba(248, 113, 113, 0.4); }
+.try-verdict.passed { background: rgba(52, 211, 153, 0.12); color: var(--ok); border: 1px solid rgba(52, 211, 153, 0.4); }
+.try-feedback {
+  background: var(--panel-2); border-radius: 8px; padding: 8px 10px; white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px;
+}
+.num-chip { display: inline-block; margin-inline-start: 4px; background: rgba(248, 113, 113, 0.16); color: var(--danger); border-radius: 6px; padding: 1px 6px; font-weight: 700; }
 .rend { background: var(--panel-2); border-radius: 8px; padding: 6px 9px; margin-bottom: 6px; }
 
 /* ---------- setup ---------- */
@@ -355,7 +375,7 @@ table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
   .md-side, .centre-side { overflow: visible; }
   .stats-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .studio { grid-template-columns: 1fr; }
-  .ae-grid { grid-template-columns: 1fr; }
+  .ae-grid, .try-grid { grid-template-columns: 1fr; }
   .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .mode-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }

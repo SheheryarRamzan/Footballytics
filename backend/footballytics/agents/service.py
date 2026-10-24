@@ -12,7 +12,7 @@ import asyncio
 import logging
 import os
 import time
-from collections import Counter
+from collections import Counter, OrderedDict
 from collections.abc import Callable
 
 from ..hub import LiveHub
@@ -28,6 +28,8 @@ class AgentService:
         self.min_importance = float(min_importance or os.getenv("NEWSROOM_MIN_IMPORTANCE", "50"))
         self.languages: Counter[str] = Counter()
         self.broadcast_log: list[dict] = []
+        # item_id -> the moment, context and claim values the Verifier checked it against (for "try a wrong number")
+        self.verified_against: OrderedDict[str, dict] = OrderedDict()
         self.recaps: dict[str, dict] = {}
         self.enabled = is_configured() and os.getenv("AGENTS", "1") == "1"
         # Agents only spend tokens while someone is watching (plus a short grace period).
@@ -91,10 +93,19 @@ class AgentService:
 
     async def _produce(self, moment: dict, languages: list[str]) -> None:
         assert self.newsroom is not None
-        item = to_jsonable(await self.newsroom.process(moment, languages))
+        item = to_jsonable(await self.newsroom.process(moment, languages, include_context=True))
+        context, item_moment = item.pop("context", None), item.pop("moment", None)
+        if context is not None and item["status"] in ("verified", "corrected"):
+            self.remember(item, context, item_moment)
         self.broadcast_log.append(item)
         await self.hub.publish({"kind": "broadcast", "match_id": moment["match_id"], "data": item})
         log.info("broadcast %s %s %s in %sms", item["match_id"], item["kind"], item["status"], item["latency_ms"])
+
+    def remember(self, item: dict, context: dict, moment: dict, keep: int = 60) -> None:
+        self.verified_against[item["item_id"]] = {"item": item, "context": context, "moment": moment,
+                                                  "claims": item["claims"]}
+        while len(self.verified_against) > keep:
+            self.verified_against.popitem(last=False)
 
     def stats(self) -> dict:
         items = self.broadcast_log

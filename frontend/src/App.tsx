@@ -38,7 +38,18 @@ export function App() {
   const clubs = useStore((s) => s.clubs);
   const setLeague = useStore((s) => s.setLeague);
   const setFan = useStore((s) => s.setFan);
+  const setView = useStore((s) => s.setView);
   useAudioDescription();
+
+  useEffect(() => {
+    // Deep links for judges: /#studio, /#try-a-wrong-number
+    const follow = () => {
+      if (location.hash === "#studio" || location.hash === "#try-a-wrong-number") setView("studio");
+    };
+    follow();
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, [setView]);
 
   useEffect(() => {
     api.league().then((l) => setLeague(l.clubs));

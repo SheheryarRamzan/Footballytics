@@ -22,7 +22,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..agents.service import AgentService
 from ..cloud import cosmos_from_env, eventhub_from_env, setup_telemetry
@@ -218,6 +218,49 @@ def explain(moment_id: str) -> dict:
 def broadcast(match_id: str | None = None, limit: int = Query(30, le=300)) -> list[dict]:
     items = [i for i in reversed(AGENTS.broadcast_log) if not match_id or i["match_id"] == match_id]
     return items[:limit]
+
+
+class TriedClaim(BaseModel):
+    subject_id: str = Field(max_length=40)
+    metric: str = Field(max_length=40)
+    value: float
+
+
+class VerifierTry(BaseModel):
+    item_id: str = Field(max_length=80)
+    headline: str = Field(max_length=300)
+    why_it_matters: str = Field(max_length=1200)
+    tactical_angle: str | None = Field(default=None, max_length=600)
+    claims: list[TriedClaim] = Field(default_factory=list, max_length=12)
+
+
+@app.get("/api/verifier/items")
+def verifier_items(limit: int = Query(12, le=60)) -> list[dict]:
+    """Recent verified broadcast items you can re-check with a wrong number, newest first."""
+    from ..agents.newsroom import invented_sentence, subject_name
+
+    out = []
+    for rec in reversed(AGENTS.verified_against.values()):
+        item = rec["item"]
+        claims = [{k: c.get(k) for k in ("subject_id", "metric", "value", "actual", "tolerance")}
+                  | {"name": subject_name(rec, c["subject_id"])} for c in item["claims"]]
+        out.append({k: item[k] for k in ("item_id", "match_id", "minute", "kind", "status", "insight")}
+                   | {"claims": claims, "invent": invented_sentence(rec)})
+        if len(out) >= limit:
+            break
+    return out
+
+
+@app.post("/api/verifier/try")
+def verifier_try(body: VerifierTry) -> dict:
+    """Try a wrong number: run the Verifier on an edited copy of a published item. Nothing is published."""
+    from ..agents.newsroom import try_verifier
+
+    rec = AGENTS.verified_against.get(body.item_id)
+    if rec is None:
+        raise HTTPException(404, "unknown or expired item: pick one from /api/verifier/items")
+    return to_jsonable(try_verifier(rec, body.headline, body.why_it_matters, body.tactical_angle,
+                                    [c.model_dump() for c in body.claims]))
 
 
 @app.get("/api/tts")
