@@ -4,7 +4,7 @@
 
 Built for the **Microsoft × Premier League "Inside the Game" Developer Hackathon**. All clubs, players and match data are synthetic and fictional.
 
-> **Live demo:** https://ca-fbx-api-5dn4hvp4.jollysmoke-ceff9f6d.eastus2.azurecontainerapps.io · **Demo video:** _link_
+> **Live demo:** https://ca-fbx-api-5dn4hvp4.jollysmoke-ceff9f6d.eastus2.azurecontainerapps.io · **Demo video (1:55):** https://youtu.be/v73FzmycymE
 > **MCP endpoint:** `https://ca-fbx-api-5dn4hvp4.jollysmoke-ceff9f6d.eastus2.azurecontainerapps.io/mcp-server/mcp`
 >
 > Matchdays play on a loop at 4× speed, so a match is always live. Pick a club, and the app builds you a fantasy squad and starts your personal broadcast.
